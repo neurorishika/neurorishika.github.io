@@ -922,6 +922,14 @@ ol {
 
 .home-four-style .main-left-area {
 	position: relative;
+	/* Permalink - use to edit and share this gradient: https://colorzilla.com/gradient-editor/#bde9f9+1,f4f4f4+40,f4f4f4+60,f4f4f4+60,f2c6ce+100 */
+	/* background: #bde9f9; /* Old browsers */
+	/* background: -moz-linear-gradient(top,  #bde9f9 1%, #f4f4f4 40%, #f4f4f4 60%, #f4f4f4 60%, #f2c6ce 100%); /* FF3.6-15 */
+	/* background: -webkit-linear-gradient(top,  #bde9f9 1%,#f4f4f4 40%,#f4f4f4 60%,#f4f4f4 60%,#f2c6ce 100%); /* Chrome10-25,Safari5.1-6 */
+	/* background: linear-gradient(to bottom,  #bde9f9 1%,#f4f4f4 40%,#f4f4f4 60%,#f4f4f4 60%,#f2c6ce 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+	/* filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#bde9f9', endColorstr='#f2c6ce',GradientType=0 ); /* IE6-9 */
+
+
 	/* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#481340+0,ff0f3c+100,ff0f3c+100 */
 	background: #481340;
 	/* Old browsers */
