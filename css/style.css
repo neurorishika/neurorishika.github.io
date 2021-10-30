@@ -930,17 +930,17 @@ ol {
 	/* filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#bde9f9', endColorstr='#f2c6ce',GradientType=0 ); /* IE6-9 */
 
 
-	/* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#481340+0,ff0f3c+100,ff0f3c+100 */
+	/* Permalink - use to edit and share this gradient: http://colorzilla.com/gradient-editor/#481340+0,e00f3c+100,e00f3c+100 */
 	background: #481340;
 	/* Old browsers */
 	/* FF3.6-15 */
-	background: -webkit-linear-gradient(top, #481340 0%, #ff0f3c 100%, #ff0f3c 100%);
+	background: -webkit-linear-gradient(top, #481340 0%, #e00f3c 100%, #e00f3c 100%);
 	/* Chrome10-25,Safari5.1-6 */
-	background: -webkit-gradient(linear, left top, left bottom, from(#481340), color-stop(100%, #ff0f3c), to(#ff0f3c));
-	background: -o-linear-gradient(top, #481340 0%, #ff0f3c 100%, #ff0f3c 100%);
-	background: linear-gradient(to bottom, #481340 0%, #ff0f3c 100%, #ff0f3c 100%);
+	background: -webkit-gradient(linear, left top, left bottom, from(#481340), color-stop(100%, #e00f3c), to(#e00f3c));
+	background: -o-linear-gradient(top, #481340 0%, #e00f3c 100%, #e00f3c 100%);
+	background: linear-gradient(to bottom, #481340 0%, #e00f3c 100%, #e00f3c 100%);
 	/* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
-	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#481340', endColorstr='#ff0f3c', GradientType=0);
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#481340', endColorstr='#e00f3c', GradientType=0);
 	/* IE6-9 */
 }
 
@@ -1006,12 +1006,12 @@ ol {
 
 .home-four-style .main-right-area .section-title h2:after,
 .home-four-style .main-right-area .review-slider .owl-dots .owl-dot.active {
-	background: #ff0f3c;
+	background: #e00f3c;
 }
 
 .home-four-style .main-right-area .resume-list h2,
 .home-four-style .main-right-area .single-review .qut {
-	color: #ff0f3c;
+	color: #e00f3c;
 }
 
 /*---------------------
