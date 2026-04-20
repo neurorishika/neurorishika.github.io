@@ -15,7 +15,6 @@ window.SITE_DATA = {
       { k: "scholar",   label: "Scholar",     href: "https://scholar.google.com/citations?user=xe4WM_UAAAAJ" },
       { k: "orcid",     label: "ORCID",       href: "https://orcid.org/0000-0002-1396-3215" },
       { k: "linkedin",  label: "LinkedIn",    href: "https://www.linkedin.com/in/neurorishika/" },
-      { k: "twitter",   label: "Twitter",     href: "https://twitter.com/NeuroRishika" },
       { k: "youtube",   label: "YouTube",     href: "https://www.youtube.com/@neurorishika" },
     ],
   },
@@ -23,10 +22,10 @@ window.SITE_DATA = {
   now: {
     updated: "April 2026",
     items: [
-      "Joint PhD with Vanessa Ruta & Daniel Kronauer — running bilateral navigation experiments in clonal raider ants and Drosophila with FlyCLOPS and MultiBiOS.",
+      "Joint PhD with Vanessa Ruta & Daniel Kronauer — imaging neural responses to bilateral and unilateral odor presentation in clonal raider ants and fruit flies with MultiBiOS.",
+      "Comparing role of different ORs and odor statistics in olfactory trail navigation in fruit flies — using FlyCLOPS with Chidera Udedibia",
+      "Shipping HYDRA Suite v1.0 — multi-animal tracking, classification and pose estimation with GPU acceleration and interactive proofreading.",
       "Ant reference brain just published in Current Biology (Frank, Lopes, Mohanta et al. 2026) — community atlas for ant neuroscience is live.",
-      "Shipping HYDRA Suite v1.0 — multi-animal tracking with GPU acceleration and interactive proofreading.",
-      "Running a Pathfinder 2e campaign on weekends; slowly working through Hölldobler & Wilson.",
     ],
   },
 
@@ -109,7 +108,6 @@ window.SITE_DATA = {
   rigs: [
     { name: "Fly-on-ball olfactory VR", year: "2019 · Turner Lab · Janelia", desc: "Closed-loop walking arena with calibrated odor delivery, used to probe how olfactory learning shapes exploratory behavior in Drosophila." },
     { name: "FlyCLOPS optogenetic trail system", year: "2023 · Ruta Lab · Rockefeller", desc: "Closed-loop optogenetic system for virtual pheromone trail following. Light activation of specific olfactory receptor neurons generates bilateral odor gradients in freely-walking flies — no chemistry required." },
-    { name: "FlyProjection closed-loop arena", year: "2024 · Ruta Lab · Rockefeller", desc: "Top-down projector + high-speed IR camera. Real-time GPU-accelerated tracking drives arbitrary 2D visual worlds rendered beneath freely-walking flies." },
     { name: "MultiBiOS bilateral olfactometer", year: "2024 · Ruta + Kronauer Labs · Rockefeller", desc: "Hardware-clocked bilateral odor delivery (NI-DAQ + Teensy 4.1) for comparative pheromone trail-following experiments in both ants and flies." },
   ],
 

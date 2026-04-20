@@ -67,7 +67,7 @@ img { max-width: 100%; display: block; }
   pointer-events: auto;
 }
 .rail-sections li a {
-  text-decoration: none; opacity: 0.35;
+  text-decoration: none; opacity: 0.55;
   transition: all 180ms ease;
   padding: 2px 0;
   display: block;
@@ -673,10 +673,10 @@ img { max-width: 100%; display: block; }
 }
 
 /* Terracotta progression b1→b4: gentle 4-step ramp ending at #deb28b (talks warmth) */
-.section[data-bg="b1"] { background-color: #ede3d9; }
-.section[data-bg="b2"] { background-color: #e9d3c1; }
-.section[data-bg="b3"] { background-color: #e3c3a7; }
-.section[data-bg="b4"] { background-color: #deb28b; }
+.section[data-bg="b1"] { background-color: #ede3d9a2; }
+.section[data-bg="b2"] { background-color: #e9d3c1a2; }
+.section[data-bg="b3"] { background-color: #e3c3a7a2; }
+.section[data-bg="b4"] { background-color: #deb28ba2; }
 .section[data-bg^="b"] {
   background-image: radial-gradient(rgba(26, 22, 20, 0.018) 1px, transparent 1px);
   background-size: 3px 3px;

@@ -12,7 +12,7 @@
   /* ═══════════════════════════════════════════════════
    *  PARAMETERS — safe to edit
    * ═══════════════════════════════════════════════════ */
-  var NUM_FLIES         = 4;     /* max simultaneous flies on screen */
+  var NUM_FLIES         = 6;     /* max simultaneous flies on screen */
   var MIN_SPEED         = 4;     /* walk speed range (px per 100 ms) */
   var MAX_SPEED         = 9;
   var WALK_FRAMES       = 4;     /* usable walking frames (cols 0-3; col 4 is blank) */
@@ -27,16 +27,23 @@
   var FLY_AWAY_SPEED    = 28;    /* px/100 ms during fly-flee */
   var FLY_LAND_MS_MIN   = 1500;  /* ms — earliest a flying fly can organically land */
   var FLY_LAND_MS_MAX   = 4000;  /* ms — latest */
-  var MIN_ZOOM          = 0.7;   /* size range (1.0 = natural 13×14 px sprite) */
+  var MIN_ZOOM          = 0.9;   /* size range (1.0 = natural 13×14 px sprite) */
   var MAX_ZOOM          = 1.0;
   var PURSUE_DIST_MIN   = 10;    /* social: min body-lengths to trigger pursuit */
   var PURSUE_DIST_MAX   = 20;    /* social: max body-lengths to trigger pursuit */
   var PURSUE_CHANCE     = 0.25;  /* probability of starting pursuit when in range */
   var PURSUE_CHECK_MIN  = 2000;  /* ms between social-scan checks */
   var PURSUE_CHECK_MAX  = 5000;
+  var FLY_COLLISION_PAD = 4;
+  var ANT_AVOID_DIST    = 34;
+  var ANT_ENCOUNTER_DIST = 18;
+  var ANT_AVOID_BOOST   = 1.7;
+  var FLY_FOOD_FREEZE_MS = 1600;
   /* ═══════════════════════════════════════════════════ */
 
   var SPRITE_URL = 'img/fly-sprite.png';
+  var insectWorld = window.__insectWorld = window.__insectWorld || {};
+  insectWorld.pendingFlyFoods = insectWorld.pendingFlyFoods || [];
 
   /* rAF polyfill */
   var rAF = window.requestAnimationFrame ||
@@ -55,6 +62,7 @@
   }
   var D2R = Math.PI / 180;
   var R2D = 180 / Math.PI;
+  var nextFlyId = 1;
 
   /* track mouse */
   var mouseX = -9999, mouseY = -9999;
@@ -73,6 +81,7 @@
       'background:transparent url(' + SPRITE_URL + ') no-repeat 0 0',
       'image-rendering:pixelated',
       'pointer-events:none',
+      'opacity:0.5',
       'z-index:0',
       'will-change:transform',
     ].join(';');
@@ -84,6 +93,7 @@
     var angleDeg  = rand(0, 360);
     var x = rand(EDGE_RESIST, window.innerWidth  - EDGE_RESIST);
     var y = rand(EDGE_RESIST, window.innerHeight - EDGE_RESIST);
+    var id = nextFlyId++;
     var frameIdx      = 0;
     var frameTimer    = 0;
     var largeTurnAng  = 0;
@@ -105,6 +115,8 @@
     var target          = null;   /* fly being pursued/followed */
     var pursueCheckTimer = rand(PURSUE_CHECK_MIN, PURSUE_CHECK_MAX);
     var thisFly         = null;   /* self-reference, set after object is created */
+    var frozen          = false;
+    var frozenTimer     = 0;
 
     /* edge-flag bitmask → safe heading ° */
     var NEAR_TOP = 1, NEAR_BOT = 2, NEAR_L = 4, NEAR_R = 8;
@@ -145,12 +157,95 @@
         ' scale(' + zoom + ')';
     }
 
+    function bodyRadius() {
+      return Math.max(4.5, BUG_W * zoom * 0.42);
+    }
+
+    function clampToViewport(pad) {
+      var W = window.innerWidth, H = window.innerHeight;
+      x = Math.max(pad, Math.min(W - BUG_W - pad, x));
+      y = Math.max(pad, Math.min(H - BUG_H - pad, y));
+    }
+
+    function retire(minDelay, maxDelay) {
+      dead = true;
+      if (el.parentNode) el.parentNode.removeChild(el);
+      setTimeout(function () { flies.push(makeFly()); }, rand(minDelay, maxDelay));
+    }
+
+    function freezeForFood(antState, duration) {
+      var now = performance.now ? performance.now() : Date.now();
+      if (dead || frozen) return false;
+      fleeing = false;
+      flying = false;
+      fleeType = '';
+      flyStopTimer = -1;
+      stationary = true;
+      pursuing = false;
+      following = false;
+      target = null;
+      frozen = true;
+      frozenTimer = duration || FLY_FOOD_FREEZE_MS;
+      frameIdx = 0;
+      setSprite();
+      draw();
+      insectWorld.pendingFlyFoods.push({
+        flyId: id,
+        x: x,
+        y: y,
+        createdAt: now,
+        expiresAt: now + frozenTimer,
+        antX: antState ? antState.x : null,
+        antY: antState ? antState.y : null,
+        claimed: false
+      });
+      return true;
+    }
+
     function tick(dt) {
       if (dead) return;
+
+      if (frozen) {
+        frozenTimer -= dt;
+        draw();
+        if (frozenTimer <= 0) retire(500, 1400);
+        return;
+      }
 
       var W = window.innerWidth, H = window.innerHeight;
       var dx = x - mouseX, dy = y - mouseY;
       var dist = Math.sqrt(dx * dx + dy * dy);
+      var antStates = insectWorld.getAntStates ? insectWorld.getAntStates() : [];
+      var nearestAnt = null;
+      var nearestClaimant = null;
+      var ai;
+
+      for (ai = 0; ai < antStates.length; ai++) {
+        var antState = antStates[ai];
+        var adx = antState.x - x;
+        var ady = antState.y - y;
+        var antDist = Math.sqrt(adx * adx + ady * ady);
+        if (!nearestAnt || antDist < nearestAnt.distance)
+          nearestAnt = { ant: antState, distance: antDist };
+        if (antState.canClaimFood && (!nearestClaimant || antDist < nearestClaimant.distance))
+          nearestClaimant = { ant: antState, distance: antDist };
+      }
+
+      if (!fleeing) {
+        if (nearestClaimant && nearestClaimant.distance < ANT_ENCOUNTER_DIST) {
+          freezeForFood(nearestClaimant.ant, FLY_FOOD_FREEZE_MS);
+          return;
+        }
+        if (nearestAnt && nearestAnt.distance < ANT_AVOID_DIST) {
+          stationary = false;
+          pursuing = false;
+          following = false;
+          target = null;
+          angleDeg = Math.atan2(-(y - nearestAnt.ant.y), x - nearestAnt.ant.x) * R2D;
+        }
+      }
+
+      var speedBoost = nearestAnt && nearestAnt.distance < ANT_AVOID_DIST ? ANT_AVOID_BOOST : 1;
 
       /* ── spook: trigger flee ── */
       if (!fleeing && dist < MOUSE_DIST) {
@@ -187,9 +282,7 @@
         draw();
         /* respawn as soon as fly leaves the visible region */
         if (x < -BUG_W || x > W + BUG_W || y < -BUG_H || y > H + BUG_H) {
-          dead = true;
-          el.parentNode && el.parentNode.removeChild(el);
-          setTimeout(function () { flies.push(makeFly()); }, rand(300, 1000));
+          retire(300, 1000);
         }
         return;
       }
@@ -227,9 +320,7 @@
         draw();
         /* respawn as soon as fly leaves the visible region */
         if (x < -BUG_W || x > W + BUG_W || y < -BUG_H || y > H + BUG_H) {
-          dead = true;
-          el.parentNode && el.parentNode.removeChild(el);
-          setTimeout(function () { flies.push(makeFly()); }, rand(300, 1000));
+          retire(300, 1000);
         }
         return;
       }
@@ -271,8 +362,8 @@
               stationary = false;
               angleDeg   = Math.atan2(-tdy, tdx) * R2D;
               var arP    = angleDeg * D2R;
-              x += Math.cos(arP) * walkSpeed * 1.5 * (dt / 100);
-              y -= Math.sin(arP) * walkSpeed * 1.5 * (dt / 100);
+              x += Math.cos(arP) * walkSpeed * 1.5 * speedBoost * (dt / 100);
+              y -= Math.sin(arP) * walkSpeed * 1.5 * speedBoost * (dt / 100);
               x  = Math.max(4, Math.min(W - BUG_W - 4, x));
               y  = Math.max(4, Math.min(H - BUG_H - 4, y));
               frameTimer += dt;
@@ -290,8 +381,8 @@
               stationary = false;
               angleDeg   = Math.atan2(-fdy, fdx) * R2D;
               var arFo   = angleDeg * D2R;
-              x += Math.cos(arFo) * walkSpeed * (dt / 100);
-              y -= Math.sin(arFo) * walkSpeed * (dt / 100);
+              x += Math.cos(arFo) * walkSpeed * speedBoost * (dt / 100);
+              y -= Math.sin(arFo) * walkSpeed * speedBoost * (dt / 100);
             } else {
               angleDeg   = ts.angleDeg;
               stationary = true;
@@ -349,7 +440,7 @@
 
       /* move */
       var ar    = angleDeg * D2R;
-      var speed = walkSpeed * (dt / 100);
+      var speed = walkSpeed * speedBoost * (dt / 100);
       x += Math.cos(ar) * speed;
       y -= Math.sin(ar) * speed;
 
@@ -381,10 +472,29 @@
     draw();
 
     thisFly = {
+      id:         id,
       tick:       tick,
       isDead:     function () { return dead; },
       isFleeing:  function () { return fleeing; },
-      getState:   function () { return { x: x, y: y, angleDeg: angleDeg, zoom: zoom }; }
+      isFrozen:   function () { return frozen; },
+      nudge:      function (dxNudge, dyNudge) {
+        x += dxNudge;
+        y += dyNudge;
+        clampToViewport(4);
+        draw();
+      },
+      freezeForFood: freezeForFood,
+      getState:   function () {
+        return {
+          id: id,
+          x: x,
+          y: y,
+          angleDeg: angleDeg,
+          zoom: zoom,
+          radius: bodyRadius(),
+          frozen: frozen
+        };
+      }
     };
     return thisFly;
   }
@@ -393,12 +503,55 @@
   var flies = [];
   var lastT = null;
 
+  insectWorld.getFlyStates = function () {
+    var live = [];
+    for (var i = 0; i < flies.length; i++) {
+      if (!flies[i].isDead()) live.push(flies[i].getState());
+    }
+    return live;
+  };
+
+  function resolveFlyCollisions() {
+    for (var i = 0; i < flies.length; i++) {
+      var flyA = flies[i];
+      if (flyA.isDead()) continue;
+      var stateA = flyA.getState();
+      for (var j = i + 1; j < flies.length; j++) {
+        var flyB = flies[j];
+        if (flyB.isDead()) continue;
+        var stateB = flyB.getState();
+        var dx = stateB.x - stateA.x;
+        var dy = stateB.y - stateA.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        var minDist = stateA.radius + stateB.radius + FLY_COLLISION_PAD;
+        if (dist >= minDist) continue;
+        if (dist === 0) {
+          dx = Math.random() - 0.5;
+          dy = Math.random() - 0.5;
+          dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        }
+        var overlap = minDist - dist;
+        var nx = dx / dist;
+        var ny = dy / dist;
+        var shareA = flyA.isFrozen() ? 0 : 0.5;
+        var shareB = flyB.isFrozen() ? 0 : 0.5;
+        if (shareA === 0 && shareB === 0) continue;
+        if (shareA === 0) shareB = 1;
+        else if (shareB === 0) shareA = 1;
+        flyA.nudge(-nx * overlap * shareA, -ny * overlap * shareA);
+        flyB.nudge(nx * overlap * shareB, ny * overlap * shareB);
+        stateA = flyA.getState();
+      }
+    }
+  }
+
   function loop(now) {
     if (!lastT) lastT = now;
     var dt = Math.min(now - lastT, 100); /* cap delta at 100 ms */
     lastT = now;
     flies = flies.filter(function (f) { return !f.isDead(); });
     for (var i = 0; i < flies.length; i++) flies[i].tick(dt);
+    resolveFlyCollisions();
     rAF(loop);
   }
 

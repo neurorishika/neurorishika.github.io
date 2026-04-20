@@ -38,7 +38,7 @@ const Hero = () => {
           <a href="https://neurorishika.github.io/CV/rm-cv.pdf" target="_blank" rel="noreferrer">CV (pdf) ↗</a>
         </div>
       </div>
-      <div className="hero-right" data-label="fig. 01 · insect brain, frontal view"
+      <div className="hero-right" data-label="fig. 01 · insect olfactory circuit, frontal view"
            style={{ transform: `translateY(${brainDrift}px)`, width: `${(window.DIAGRAM_SCALE || 1) * 100}%`, justifySelf: 'center' }}>
         <window.BrainMap alive={true} scrollProgress={progress} />
       </div>

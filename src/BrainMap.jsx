@@ -472,8 +472,8 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
         />
 
         <text
-          x={mapPoint([78, 10])[0]}
-          y="58"
+          x={mapPoint([60, 10])[0]}
+          y="358"
           textAnchor="middle"
           fontFamily="var(--serif-display)"
           fontStyle="italic"
@@ -486,7 +486,7 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
         </text>
         <text
           x={mapPoint([183, 10])[0]}
-          y="58"
+          y="358"
           textAnchor="middle"
           fontFamily="var(--serif-display)"
           fontStyle="italic"
@@ -668,13 +668,6 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
             strokeOpacity="0.16"
             strokeWidth="0.6"
           />
-        </g>
-
-        <g opacity={0.52 + clampedProgress * 0.25} pointerEvents="none">
-          <text x="50" y="357" fontFamily="var(--mono)" fontSize="9.5" fill="currentColor">
-            fig. 01 · olfactory circuit
-          </text>
-          
         </g>
       </svg>
     </div>
