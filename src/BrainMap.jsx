@@ -1,6 +1,16 @@
 // Comparative olfactory circuit: Drosophila melanogaster vs Ooceraea biroi
 // Circuit: ORN -> AL -> {LH, MB} -> CX -> descending neurons
 
+// ─── Single scale control ────────────────────────────────────────────────────
+// Controls the physical box size in App.jsx. 1.0 = default, 0.8 = 80%, etc.
+const DIAGRAM_SCALE = 1.3;
+window.DIAGRAM_SCALE = DIAGRAM_SCALE;
+
+// Full content extent in SVG coordinates (fixed viewBox, no zoom)
+const _VB = { x: 45, y: 33, w: 445, h: 334 };
+const VIEWBOX = `${_VB.x} ${_VB.y} ${_VB.w} ${_VB.h}`;
+// ─────────────────────────────────────────────────────────────────────────────
+
 const REF_FRAME = {
   x: 58,
   y: 34,
@@ -382,7 +392,7 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
     <div className="brainmap">
       <svg
         ref={svgRef}
-        viewBox="40 18 468 351"
+        viewBox={VIEWBOX}
         preserveAspectRatio="xMidYMid meet"
         aria-label="Comparative olfactory circuit diagram for fly and ant brains"
         onPointerLeave={onLeave}
