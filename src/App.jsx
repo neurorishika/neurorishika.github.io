@@ -39,7 +39,7 @@ const Hero = () => {
         </div>
       </div>
       <div className="hero-right" data-label="fig. 01 · insect brain, frontal view"
-           style={{ transform: `translateY(${brainDrift}px)` }}>
+           style={{ transform: `translateY(${brainDrift}px)`, width: `${(window.DIAGRAM_SCALE || 1) * 100}%`, justifySelf: 'center' }}>
         <window.BrainMap alive={true} scrollProgress={progress} />
       </div>
 
@@ -50,6 +50,8 @@ const Hero = () => {
     </section>
   );
 };
+
+const RAIL_BG_TYPE = { research: "tint", rigs: "tint", talks: "tint", path: "tint", contact: "dark" };
 
 const ProgressRail = () => {
   const sections = ["now", "research", "tools", "rigs", "publications", "talks", "teaching", "path", "contact"];
@@ -76,8 +78,9 @@ const ProgressRail = () => {
     return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); };
   }, []);
   const pct = Math.max(0, Math.min(1, y / Math.max(1, docH)));
+  const bgType = RAIL_BG_TYPE[active] || "";
   return (
-    <div className="rail" aria-hidden="true">
+    <div className={`rail${bgType ? ` rail--${bgType}` : ""}`} aria-hidden="true">
       <div className="rail-line">
         <div className="rail-fill" style={{ height: `${pct * 100}%` }} />
         <div className="rail-tick" style={{ top: `${pct * 100}%` }} />
@@ -95,7 +98,6 @@ const ProgressRail = () => {
 
 const App = () => {
   const route = window.useHashRoute();
-  window.usePageBg(SECTION_BG);
 
   React.useEffect(() => {
     if (route && route.startsWith("#/")) window.scrollTo({ top: 0, behavior: "auto" });

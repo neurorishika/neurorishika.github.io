@@ -12,12 +12,12 @@ const Marginalia = ({ children, rotate = -2, delay = 0, stiffness = 90, damping 
   );
 };
 
-const Section = ({ id, eyebrow, title, sub, children, className = "", margin, invert }) => {
+const Section = ({ id, eyebrow, title, sub, children, className = "", margin, bg }) => {
   const [headRef, , progress] = window.useInView();
   const underbarW = Math.min(44, progress * 180);
   return (
     <section id={id} className={`section ${className}`} data-screen-label={id}
-             {...(invert ? { "data-invert": "" } : {})}>
+             {...(bg ? { "data-bg": bg } : {})}>
       <div className="section-inner">
         <window.Reveal>
           <div className="section-head" ref={headRef} style={{ "--underbar-w": `${underbarW}px` }}>
@@ -64,7 +64,7 @@ const PillarsSection = () => {
   const [active, setActive] = React.useState(pillars[0].id);
   const cur = pillars.find(p => p.id === active);
   return (
-    <Section id="research" eyebrow="// research"
+    <Section id="research" eyebrow="// research" bg="b1"
              title="Three questions I keep returning to"
              sub="Organized by theme, not chronology. Each thread is a project — click through for the full story."
              margin={<Marginalia rotate={-4} stiffness={96} damping={9}>the three pillars interlock — you can't study variation without building tools to measure it</Marginalia>}>
@@ -170,7 +170,7 @@ const ToolsSection = () => {
 const RigsSection = () => {
   const rigs = window.SITE_DATA.rigs;
   return (
-    <Section id="rigs" eyebrow="// hardware"
+    <Section id="rigs" eyebrow="// hardware" bg="b2"
              title="Behavioral rigs"
              sub="Custom-built experimental platforms. Opinionated about sync, boring about reliability."
              margin={<Marginalia rotate={-3} stiffness={102} damping={10}>"if the rig isn't quiet, the data isn't either." — folk wisdom</Marginalia>}>
@@ -226,7 +226,7 @@ const PubsSection = () => {
 const TalksSection = () => {
   const t = window.SITE_DATA.talksAndPosters;
   return (
-    <Section id="talks" eyebrow="// talks & posters" title="Selected talks and posters">
+    <Section id="talks" eyebrow="// talks & posters" bg="b3" title="Selected talks and posters">
       <ul className="talks">
         {t.map((x, i) => (
           <window.Reveal key={i} delay={i * 40}>
@@ -270,7 +270,7 @@ const TeachingSection = () => {
 const TimelineSection = () => {
   const t = window.SITE_DATA.timeline;
   return (
-    <Section id="path" eyebrow="// path" title="Academic path">
+    <Section id="path" eyebrow="// path" bg="b4" title="Academic path">
       <ul className="timeline">
         {t.map((x, i) => (
           <window.Reveal key={i} delay={i * 60}>
@@ -294,7 +294,7 @@ const ContactSection = () => {
   return (
     <Section id="contact" eyebrow="// contact" title="Reach out"
              sub="I read every message, even if replies take a moment."
-             invert>
+             bg="d">
       <div className="contact">
         <div className="contact-emails">
           <window.Reveal><div><span className="c-label">work</span><span className="c-val">{id.emails.work}</span></div></window.Reveal>

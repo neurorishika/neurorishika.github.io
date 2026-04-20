@@ -18,7 +18,7 @@ html { scroll-behavior: smooth; }
 a { color: inherit; }
 img { max-width: 100%; display: block; }
 
-.page { padding-top: 0; min-height: 100vh; background-color: var(--bg-now, var(--paper)); }
+.page { padding-top: 0; min-height: 100vh; background: var(--paper); }
 
 /* ==================
    Reveal-on-scroll
@@ -39,7 +39,7 @@ img { max-width: 100%; display: block; }
   z-index: 40;
   display: flex; align-items: center; gap: 12px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   pointer-events: none;
@@ -49,16 +49,17 @@ img { max-width: 100%; display: block; }
   position: relative;
   width: 1px; height: 260px;
   background: var(--rule);
+  transition: background 400ms ease;
 }
 .rail-fill {
   position: absolute; top: 0; left: 0; width: 1px;
   background: var(--accent);
-  transition: height 80ms linear;
+  transition: height 80ms linear, background 400ms ease;
 }
 .rail-tick {
   position: absolute; left: -3px; width: 7px; height: 1px;
   background: var(--accent);
-  transition: top 80ms linear;
+  transition: top 80ms linear, background 400ms ease;
 }
 .rail-sections {
   list-style: none; margin: 0; padding: 0;
@@ -74,12 +75,23 @@ img { max-width: 100%; display: block; }
 .rail-sections li.on a { opacity: 1; color: var(--accent); letter-spacing: 0.2em; }
 .rail-sections li a:hover { opacity: 0.85; }
 
+/* Rail over dark sienna section */
+.rail--dark .rail-line { background: rgba(239,233,221,0.2); }
+.rail--dark .rail-fill { background: rgba(239,233,221,0.75); }
+.rail--dark .rail-tick { background: rgba(239,233,221,0.75); }
+.rail--dark .rail-sections li a { color: rgba(239,233,221,0.55); }
+.rail--dark .rail-sections li.on a { color: rgba(239,233,221,0.95); letter-spacing: 0.2em; }
+
+/* Rail over terracotta tinted sections */
+.rail--tint .rail-sections li a { color: rgba(15,13,12,0.5); }
+.rail--tint .rail-sections li.on a { color: #7a3318; }
+
 /* ==================
    HERO
    ================== */
 .hero {
   display: grid;
-  grid-template-columns: 1fr 1.3fr;
+  grid-template-columns: 1.1fr 1fr;
   gap: 72px;
   padding: 96px 72px 80px;
   max-width: 1240px; margin: 0 auto;
@@ -149,7 +161,7 @@ img { max-width: 100%; display: block; }
 .hero-right::before {
   content: attr(data-label);
   position: absolute; top: 12px; left: 14px;
-  font-family: var(--mono); font-size: 14px;
+  font-family: var(--mono); font-size: 11px;
   letter-spacing: 0.18em; text-transform: uppercase;
   opacity: 0.62; z-index: 2;
   padding: 4px 8px;
@@ -615,15 +627,16 @@ img { max-width: 100%; display: block; }
    FOOTER
    ================== */
 .footer {
-  max-width: 1240px; margin: 0 auto;
-  padding: 44px 64px;
-  border-top: 1px solid var(--rule);
+  max-width: 100%; margin: 0;
+  padding: 28px 72px;
+  border-top: 1px solid rgba(239,233,221,0.2);
   font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em;
-  text-transform: uppercase; opacity: 0.55;
+  text-transform: uppercase; color: rgba(239,233,221,0.55);
+  background: #7d3318;
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
 }
-@media (max-width: 1100px) { .footer { padding: 32px 32px; } }
-@media (max-width: 600px) { .footer { padding: 28px 20px; font-size: 11px; } }
+@media (max-width: 1100px) { .footer { padding: 24px 32px; } }
+@media (max-width: 600px) { .footer { padding: 20px 20px; font-size: 11px; } }
 
 /* =====================================================
    FIELD NOTEBOOK THEME
@@ -647,6 +660,25 @@ img { max-width: 100%; display: block; }
 
 .page {
   background-image: radial-gradient(rgba(26, 22, 20, 0.025) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+/* Section background tiers — full-bleed bg, wider content column */
+.section[data-bg] {
+  max-width: 100%;
+}
+.section[data-bg] > .section-inner {
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+/* Terracotta progression b1→b4: gentle 4-step ramp ending at #deb28b (talks warmth) */
+.section[data-bg="b1"] { background-color: #ede3d9; }
+.section[data-bg="b2"] { background-color: #e9d3c1; }
+.section[data-bg="b3"] { background-color: #e3c3a7; }
+.section[data-bg="b4"] { background-color: #deb28b; }
+.section[data-bg^="b"] {
+  background-image: radial-gradient(rgba(26, 22, 20, 0.018) 1px, transparent 1px);
   background-size: 3px 3px;
 }
 
@@ -717,23 +749,27 @@ img { max-width: 100%; display: block; }
 }
 
 /* ==================
-   INVERTED SECTION (Contact)
+   SIENNA SECTION (Contact footer zone)
    ================== */
-[data-invert] { --accent: var(--paper); }
-[data-invert] .section-title,
-[data-invert] .eyebrow,
-[data-invert] .section-sub,
-[data-invert] p,
-[data-invert] span,
-[data-invert] li { color: var(--paper); }
-[data-invert] a { color: var(--paper); }
-[data-invert] .section-title::after { background: var(--paper); opacity: 0.4; }
-[data-invert] .c-label { color: rgba(239,233,221,0.55); }
-[data-invert] .contact-social a { border-color: rgba(239,233,221,0.3); }
-[data-invert] .ttrpg-label { color: rgba(239,233,221,0.55); }
-[data-invert] .marginalia { color: rgba(239,233,221,0.8); border-color: rgba(239,233,221,0.2); }
-[data-invert] .ghost-link { color: rgba(239,233,221,0.7); border-color: rgba(239,233,221,0.3); }
-[data-invert] .marginalia::before { background: rgba(239,233,221,0.4); }
+[data-bg="d"] {
+  background: #b0532a;
+  background-image: radial-gradient(rgba(239,233,221,0.06) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+[data-bg="d"] .section-title,
+[data-bg="d"] .eyebrow,
+[data-bg="d"] .section-sub,
+[data-bg="d"] p,
+[data-bg="d"] span,
+[data-bg="d"] li { color: var(--paper); }
+[data-bg="d"] a { color: var(--paper); }
+[data-bg="d"] .section-title::after { background: var(--paper); opacity: 0.4; }
+[data-bg="d"] .c-label { color: rgba(239,233,221,0.55); }
+[data-bg="d"] .contact-social a { border-color: rgba(239,233,221,0.3); }
+[data-bg="d"] .ttrpg-label { color: rgba(239,233,221,0.55); }
+[data-bg="d"] .marginalia { color: rgba(239,233,221,0.8); border-color: rgba(239,233,221,0.2); }
+[data-bg="d"] .ghost-link { color: rgba(239,233,221,0.7); border-color: rgba(239,233,221,0.3); }
+[data-bg="d"] .marginalia::before { background: rgba(239,233,221,0.4); }
 
 .rig-card {
   transition: background 180ms, transform 240ms cubic-bezier(.34,1.1,.64,1),
