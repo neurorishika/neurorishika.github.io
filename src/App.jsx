@@ -1,14 +1,28 @@
 // App shell — field notebook theme only.
 
+const SECTION_BG = {
+  hero:         "#e6dfcf",
+  now:          "#efe9dd",
+  research:     "#f0cdb0",
+  tools:        "#efe9dd",
+  rigs:         "#f0cdb0",
+  publications: "#efe9dd",
+  talks:        "#f0cdb0",
+  teaching:     "#efe9dd",
+  path:         "#f0cdb0",
+  contact:      "#b0532a",
+};
+
 const Hero = () => {
   const id = window.SITE_DATA.identity;
   const [ref, , progress] = window.useInView();
   const y = window.useScrollY();
-  const parallax = Math.min(40, y * 0.08);
+  const textDrift = Math.min(60, y * 0.08);
+  const brainDrift = Math.min(120, y * 0.30);
 
   return (
     <section className="hero" data-screen-label="hero" ref={ref}>
-      <div className="hero-left" style={{ transform: `translateY(${-parallax}px)` }}>
+      <div className="hero-left" style={{ transform: `translateY(${-textDrift}px)` }}>
         <div className="eyebrow">// neuroscientist · toolmaker · {id.location.toLowerCase()}</div>
         <h1 className="hero-name">
           <span>Rishika</span>
@@ -24,7 +38,8 @@ const Hero = () => {
           <a href="https://neurorishika.github.io/CV/rm-cv.pdf" target="_blank" rel="noreferrer">CV (pdf) ↗</a>
         </div>
       </div>
-      <div className="hero-right" data-label="fig. 01 · insect brain, frontal view">
+      <div className="hero-right" data-label="fig. 01 · insect brain, frontal view"
+           style={{ transform: `translateY(${brainDrift}px)` }}>
         <window.BrainMap alive={true} scrollProgress={progress} />
       </div>
 
@@ -80,6 +95,7 @@ const ProgressRail = () => {
 
 const App = () => {
   const route = window.useHashRoute();
+  window.usePageBg(SECTION_BG);
 
   React.useEffect(() => {
     if (route && route.startsWith("#/")) window.scrollTo({ top: 0, behavior: "auto" });

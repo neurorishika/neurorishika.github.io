@@ -1,28 +1,37 @@
 // Sections with scroll-alive behaviors + marginalia.
 
-const Marginalia = ({ children, rotate = -2, delay = 0 }) => (
-  <window.Reveal delay={delay} y={20} className="marginalia-wrap">
-    <div className="marginalia" style={{ ["--rot"]: `${rotate}deg` }}>
-      {children}
-    </div>
-  </window.Reveal>
-);
+const Marginalia = ({ children, rotate = -2, delay = 0, stiffness = 90, damping = 8 }) => {
+  const swing = window.useSpring(stiffness, damping);
+  return (
+    <window.Reveal delay={delay} y={20} className="marginalia-wrap">
+      <div className="marginalia"
+           style={{ transform: `rotate(${rotate + swing}deg)` }}>
+        {children}
+      </div>
+    </window.Reveal>
+  );
+};
 
-const Section = ({ id, eyebrow, title, sub, children, className = "", margin }) => (
-  <section id={id} className={`section ${className}`} data-screen-label={id}>
-    <div className="section-inner">
-      <window.Reveal>
-        <div className="section-head">
-          {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-          {title && <h2 className="section-title">{title}</h2>}
-          {sub && <p className="section-sub">{sub}</p>}
-        </div>
-      </window.Reveal>
-      <div className="section-body">{children}</div>
-    </div>
-    {margin && <div className="section-margin">{margin}</div>}
-  </section>
-);
+const Section = ({ id, eyebrow, title, sub, children, className = "", margin, invert }) => {
+  const [headRef, , progress] = window.useInView();
+  const underbarW = Math.min(44, progress * 180);
+  return (
+    <section id={id} className={`section ${className}`} data-screen-label={id}
+             {...(invert ? { "data-invert": "" } : {})}>
+      <div className="section-inner">
+        <window.Reveal>
+          <div className="section-head" ref={headRef} style={{ "--underbar-w": `${underbarW}px` }}>
+            {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+            {title && <h2 className="section-title">{title}</h2>}
+            {sub && <p className="section-sub">{sub}</p>}
+          </div>
+        </window.Reveal>
+        <div className="section-body">{children}</div>
+      </div>
+      {margin && <div className="section-margin">{margin}</div>}
+    </section>
+  );
+};
 
 // ------------------------------ Now ------------------------------
 const NowSection = () => {
@@ -31,7 +40,7 @@ const NowSection = () => {
     <Section id="now" eyebrow="// now"
              title="What I'm working on right now"
              sub={`updated ${d.updated}`}
-             margin={<Marginalia rotate={3}>a "now page" — a snapshot of current focus, revisited monthly</Marginalia>}>
+             margin={<Marginalia rotate={3} stiffness={82} damping={7}>a "now page" — a snapshot of current focus, revisited monthly</Marginalia>}>
       <ul className="now-list">
         {d.items.map((it, i) => (
           <window.Reveal key={i} delay={i * 70}>
@@ -58,7 +67,7 @@ const PillarsSection = () => {
     <Section id="research" eyebrow="// research"
              title="Three questions I keep returning to"
              sub="Organized by theme, not chronology. Each thread is a project — click through for the full story."
-             margin={<Marginalia rotate={-4}>the three pillars interlock — you can't study variation without building tools to measure it</Marginalia>}>
+             margin={<Marginalia rotate={-4} stiffness={96} damping={9}>the three pillars interlock — you can't study variation without building tools to measure it</Marginalia>}>
       <div className="pillars">
         <div className="pillar-tabs">
           {pillars.map((p, i) => (
@@ -91,46 +100,67 @@ const PillarsSection = () => {
 };
 
 // ------------------------------ Tools ------------------------------
+const ToolCard = ({ t }) => {
+  const cardRef = React.useRef(null);
+  const Preview = window.ToolPreviews[t.preview];
+
+  const handleMouseMove = (e) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    card.style.transform = `translateY(-4px) rotateY(${x * 14}deg) rotateX(${-y * 14}deg)`;
+  };
+
+  const handleMouseLeave = () => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transform = '';
+  };
+
+  return (
+    <window.Reveal>
+      <div className="tool-card" ref={cardRef}
+           onMouseMove={handleMouseMove}
+           onMouseLeave={handleMouseLeave}>
+        <a className="tool-card-link" href={t.href} target="_blank" rel="noreferrer">↗</a>
+        <div className="tool-preview">
+          <Preview />
+        </div>
+        <div className="tool-meta">
+          <div className="tool-top">
+            <span className="tool-tag">{t.tag}</span>
+            <span className="tool-year">{t.year}</span>
+          </div>
+          <a href={`#/tools/${encodeURIComponent(t.name)}`}
+             className="tool-name-link">
+            <h3 className="tool-name">{t.name}</h3>
+          </a>
+          <p className="tool-blurb">{t.blurb}</p>
+          <div className="tool-bottom">
+            <span className="tool-lang">{t.lang}</span>
+            <span className="tool-status"><i className="status-dot" />{t.status}</span>
+          </div>
+          <div className="tool-actions">
+            <a href={`#/tools/${encodeURIComponent(t.name)}`}>deep-dive →</a>
+            <a href={t.href} target="_blank" rel="noreferrer">github ↗</a>
+          </div>
+        </div>
+      </div>
+    </window.Reveal>
+  );
+};
+
 const ToolsSection = () => {
   const tools = window.SITE_DATA.tools;
   return (
     <Section id="tools" eyebrow="// software"
              title="Software I've built"
              sub="Open-source where possible. Previews are live — hover a card to see them animate."
-             margin={<Marginalia rotate={2}>measurement is half the science. good tools compound across labs.</Marginalia>}>
+             margin={<Marginalia rotate={2} stiffness={88} damping={8}>measurement is half the science. good tools compound across labs.</Marginalia>}>
       <div className="tools-grid">
-        {tools.map((t, i) => {
-          const Preview = window.ToolPreviews[t.preview];
-          return (
-            <window.Reveal key={t.name} delay={i * 60}>
-              <div className="tool-card">
-                <a className="tool-card-link" href={t.href} target="_blank" rel="noreferrer">↗</a>
-                <div className="tool-preview">
-                  <Preview />
-                </div>
-                <div className="tool-meta">
-                  <div className="tool-top">
-                    <span className="tool-tag">{t.tag}</span>
-                    <span className="tool-year">{t.year}</span>
-                  </div>
-                  <a href={`#/tools/${encodeURIComponent(t.name)}`}
-                     className="tool-name-link">
-                    <h3 className="tool-name">{t.name}</h3>
-                  </a>
-                  <p className="tool-blurb">{t.blurb}</p>
-                  <div className="tool-bottom">
-                    <span className="tool-lang">{t.lang}</span>
-                    <span className="tool-status"><i className="status-dot" />{t.status}</span>
-                  </div>
-                  <div className="tool-actions">
-                    <a href={`#/tools/${encodeURIComponent(t.name)}`}>deep-dive →</a>
-                    <a href={t.href} target="_blank" rel="noreferrer">github ↗</a>
-                  </div>
-                </div>
-              </div>
-            </window.Reveal>
-          );
-        })}
+        {tools.map((t, i) => <ToolCard key={t.name} t={t} />)}
       </div>
     </Section>
   );
@@ -143,7 +173,7 @@ const RigsSection = () => {
     <Section id="rigs" eyebrow="// hardware"
              title="Behavioral rigs"
              sub="Custom-built experimental platforms. Opinionated about sync, boring about reliability."
-             margin={<Marginalia rotate={-3}>"if the rig isn't quiet, the data isn't either." — folk wisdom</Marginalia>}>
+             margin={<Marginalia rotate={-3} stiffness={102} damping={10}>"if the rig isn't quiet, the data isn't either." — folk wisdom</Marginalia>}>
       <div className="rigs">
         {rigs.map((r, i) => (
           <window.Reveal key={i} delay={i * 100}>
@@ -263,7 +293,8 @@ const ContactSection = () => {
   const id = window.SITE_DATA.identity;
   return (
     <Section id="contact" eyebrow="// contact" title="Reach out"
-             sub="I read every message, even if replies take a moment.">
+             sub="I read every message, even if replies take a moment."
+             invert>
       <div className="contact">
         <div className="contact-emails">
           <window.Reveal><div><span className="c-label">work</span><span className="c-val">{id.emails.work}</span></div></window.Reveal>

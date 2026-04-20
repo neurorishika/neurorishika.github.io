@@ -18,7 +18,7 @@ html { scroll-behavior: smooth; }
 a { color: inherit; }
 img { max-width: 100%; display: block; }
 
-.page { padding-top: 0; min-height: 100vh; background: var(--paper); }
+.page { padding-top: 0; min-height: 100vh; background-color: var(--bg-now, var(--paper)); }
 
 /* ==================
    Reveal-on-scroll
@@ -246,7 +246,7 @@ img { max-width: 100%; display: block; }
   line-height: 1.4;
   color: var(--accent);
   opacity: 0.85;
-  transform: rotate(var(--rot, -2deg));
+  transform-origin: top center;
   padding: 14px 16px;
   position: relative;
   max-width: 180px;
@@ -646,10 +646,8 @@ img { max-width: 100%; display: block; }
 }
 
 .page {
-  background-image:
-    radial-gradient(rgba(26, 22, 20, 0.025) 1px, transparent 1px),
-    linear-gradient(var(--paper), var(--paper));
-  background-size: 3px 3px, auto;
+  background-image: radial-gradient(rgba(26, 22, 20, 0.025) 1px, transparent 1px);
+  background-size: 3px 3px;
 }
 
 .hero-right {
@@ -696,25 +694,46 @@ img { max-width: 100%; display: block; }
 .section-title::after {
   content: '';
   display: block;
-  width: 44px; height: 2px;
+  width: var(--underbar-w, 0px); height: 2px;
   background: var(--accent);
   margin-top: 16px;
   opacity: 0.55;
   border-radius: 1px;
+  transition: none;
 }
 
 /* ==================
-   CARD HOVER LIFT
+   CARD HOVER LIFT + 3D TILT
    ================== */
+.tools-grid { perspective: 900px; }
 .tool-card {
-  transition: background 180ms, transform 240ms cubic-bezier(.34,1.1,.64,1),
+  will-change: transform;
+  transition: background 180ms, transform 400ms cubic-bezier(.34,1.1,.64,1),
               box-shadow 240ms ease;
 }
 .tool-card:hover {
   background: var(--hover-bg);
-  transform: translateY(-4px);
   box-shadow: 0 10px 32px rgba(15,13,12,0.09);
 }
+
+/* ==================
+   INVERTED SECTION (Contact)
+   ================== */
+[data-invert] { --accent: var(--paper); }
+[data-invert] .section-title,
+[data-invert] .eyebrow,
+[data-invert] .section-sub,
+[data-invert] p,
+[data-invert] span,
+[data-invert] li { color: var(--paper); }
+[data-invert] a { color: var(--paper); }
+[data-invert] .section-title::after { background: var(--paper); opacity: 0.4; }
+[data-invert] .c-label { color: rgba(239,233,221,0.55); }
+[data-invert] .contact-social a { border-color: rgba(239,233,221,0.3); }
+[data-invert] .ttrpg-label { color: rgba(239,233,221,0.55); }
+[data-invert] .marginalia { color: rgba(239,233,221,0.8); border-color: rgba(239,233,221,0.2); }
+[data-invert] .ghost-link { color: rgba(239,233,221,0.7); border-color: rgba(239,233,221,0.3); }
+[data-invert] .marginalia::before { background: rgba(239,233,221,0.4); }
 
 .rig-card {
   transition: background 180ms, transform 240ms cubic-bezier(.34,1.1,.64,1),
