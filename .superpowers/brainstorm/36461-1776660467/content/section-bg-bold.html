@@ -1,0 +1,87 @@
+<h2>Bolder section backgrounds</h2>
+<p class="subtitle">Moving beyond journal restraint — pick the register that feels right. Multi-select.</p>
+
+<style>
+  .swatch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+  .swatch-card { border-radius: 8px; overflow: hidden; border: 1px solid rgba(15,13,12,0.13); cursor: pointer; }
+  .swatch-card.selected { outline: 3px solid #b0532a; outline-offset: 2px; }
+  .swatch-preview { padding: 22px 24px; min-height: 130px; position: relative; display: flex; flex-direction: column; gap: 10px; }
+  .mock-eyebrow { font-family: monospace; font-size: 11px; letter-spacing: 0.1em; opacity: 0.65; text-transform: uppercase; }
+  .mock-title { font-size: 22px; font-weight: 500; font-family: Georgia, serif; line-height: 1.2; }
+  .mock-underbar { width: 44px; height: 2px; border-radius: 1px; }
+  .mock-body { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+  .mock-line { height: 9px; border-radius: 2px; }
+  .mock-note {
+    position: absolute; right: 16px; top: 14px; font-size: 10px; font-style: italic;
+    padding: 5px 9px; border-radius: 3px; transform: rotate(2.5deg);
+    max-width: 85px; line-height: 1.4; text-align: center;
+  }
+  .swatch-label { padding: 10px 16px; font-family: monospace; font-size: 12px; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.05); }
+  .hex { font-weight: 600; }
+</style>
+
+<div class="swatch-grid">
+
+  <!-- Anchor: parchment stays -->
+  <div class="swatch-card" onclick="toggleSelect(this)" data-choice="anchor">
+    <div class="swatch-preview" style="background:#efe9dd;">
+      <div class="mock-eyebrow" style="color:#0f0d0c;">// now</div>
+      <div class="mock-title" style="color:#0f0d0c;">What I'm working on</div>
+      <div class="mock-underbar" style="background:#b0532a; opacity:0.55;"></div>
+      <div class="mock-body">
+        <div class="mock-line" style="background:rgba(15,13,12,0.15); width:88%;"></div>
+        <div class="mock-line" style="background:rgba(15,13,12,0.15); width:72%;"></div>
+      </div>
+      <div class="mock-note" style="background:rgba(255,255,255,0.4); color:#555; border:1px solid rgba(15,13,12,0.1);">anchor sections</div>
+    </div>
+    <div class="swatch-label" style="color:#555;"><span>Anchor · parchment</span><span class="hex" style="color:#b0532a;">#efe9dd</span></div>
+  </div>
+
+  <!-- Warm terracotta -->
+  <div class="swatch-card" onclick="toggleSelect(this)" data-choice="b">
+    <div class="swatch-preview" style="background:#f0cdb0;">
+      <div class="mock-eyebrow" style="color:#0f0d0c;">// research</div>
+      <div class="mock-title" style="color:#0f0d0c;">Three questions</div>
+      <div class="mock-underbar" style="background:#7a3318; opacity:0.7;"></div>
+      <div class="mock-body">
+        <div class="mock-line" style="background:rgba(15,13,12,0.18); width:88%;"></div>
+        <div class="mock-line" style="background:rgba(15,13,12,0.18); width:72%;"></div>
+      </div>
+      <div class="mock-note" style="background:rgba(255,255,255,0.35); color:#5a2e10; border:1px solid rgba(90,46,16,0.2);">light terracotta</div>
+    </div>
+    <div class="swatch-label" style="color:#555;"><span>B · light terracotta</span><span class="hex" style="color:#b0532a;">#f0cdb0</span></div>
+  </div>
+
+  <!-- Rich amber -->
+  <div class="swatch-card" onclick="toggleSelect(this)" data-choice="c">
+    <div class="swatch-preview" style="background:#e8a878;">
+      <div class="mock-eyebrow" style="color:#1a0d06;">// software</div>
+      <div class="mock-title" style="color:#1a0d06;">Software I've built</div>
+      <div class="mock-underbar" style="background:#6b2c10; opacity:0.8;"></div>
+      <div class="mock-body">
+        <div class="mock-line" style="background:rgba(26,13,6,0.2); width:88%;"></div>
+        <div class="mock-line" style="background:rgba(26,13,6,0.2); width:72%;"></div>
+      </div>
+      <div class="mock-note" style="background:rgba(255,255,255,0.3); color:#4a1e08; border:1px solid rgba(74,30,8,0.2);">rich amber</div>
+    </div>
+    <div class="swatch-label" style="color:#555;"><span>C · rich amber</span><span class="hex" style="color:#b0532a;">#e8a878</span></div>
+  </div>
+
+  <!-- Bold sienna — light text -->
+  <div class="swatch-card" onclick="toggleSelect(this)" data-choice="d">
+    <div class="swatch-preview" style="background:#b0532a;">
+      <div class="mock-eyebrow" style="color:rgba(239,233,221,0.7);">// contact</div>
+      <div class="mock-title" style="color:#efe9dd;">Reach out</div>
+      <div class="mock-underbar" style="background:#efe9dd; opacity:0.5;"></div>
+      <div class="mock-body">
+        <div class="mock-line" style="background:rgba(239,233,221,0.3); width:88%;"></div>
+        <div class="mock-line" style="background:rgba(239,233,221,0.3); width:72%;"></div>
+      </div>
+      <div class="mock-note" style="background:rgba(239,233,221,0.15); color:rgba(239,233,221,0.8); border:1px solid rgba(239,233,221,0.2);">full sienna + cream text</div>
+    </div>
+    <div class="swatch-label" style="color:#555;"><span>D · full sienna (inverted)</span><span class="hex" style="color:#b0532a;">#b0532a + cream text</span></div>
+  </div>
+
+</div>
+
+<p class="subtitle">My read: <strong>anchor + B + D</strong> gives a three-level rhythm — parchment → terracotta wash → full sienna invert for one or two dramatic sections. C (amber) is also on the table if you want four levels.</p>
