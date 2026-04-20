@@ -1,0 +1,126 @@
+<h2>Scroll-aliveness design — 4 effects</h2>
+<p class="subtitle">All four are independent — each file gets one clean change. Does this look right?</p>
+
+<style>
+  .effect-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0; }
+  .effect-card {
+    background: #efe9dd; border: 1px solid rgba(15,13,12,0.15); border-radius: 8px;
+    padding: 18px 20px; position: relative; overflow: hidden;
+  }
+  .effect-num {
+    font-family: monospace; font-size: 11px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #b0532a; margin-bottom: 8px; display: block;
+  }
+  .effect-card h3 { margin: 0 0 6px; font-size: 16px; }
+  .effect-card p { font-size: 13px; color: #444; margin: 0 0 10px; line-height: 1.5; }
+  .spec-list { list-style: none; padding: 0; margin: 0; }
+  .spec-list li {
+    font-family: monospace; font-size: 12px; color: #666;
+    padding: 3px 0; border-bottom: 1px solid rgba(15,13,12,0.07);
+    display: flex; gap: 8px;
+  }
+  .spec-list li:last-child { border-bottom: none; }
+  .spec-key { color: #b0532a; flex-shrink: 0; }
+  .demo-brain {
+    width: 44px; height: 44px; border-radius: 50%; background: rgba(176,83,42,0.12);
+    margin-bottom: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .demo-card-tilt {
+    width: 100%; height: 36px; background: #e6dfcf; border-radius: 4px;
+    border: 1px solid rgba(15,13,12,0.15);
+    display: flex; align-items: center; padding: 0 10px; gap: 8px;
+    transform: perspective(400px) rotateX(4deg) rotateY(-5deg);
+    font-size: 12px; color: #888; font-family: monospace;
+  }
+  .demo-note {
+    background: #e8e0cf; border: 1px solid rgba(15,13,12,0.15); border-radius: 3px;
+    padding: 8px 12px; font-size: 12px; font-style: italic; color: #555;
+    transform-origin: top center;
+    display: inline-block;
+    transform: rotate(-2deg) translateY(4px);
+    position: relative;
+  }
+  .demo-note::before {
+    content: '';
+    width: 8px; height: 8px; border-radius: 50%; background: #b0532a;
+    position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+  }
+  .demo-underbar {
+    height: 2px; background: linear-gradient(to right, #b0532a 60%, rgba(176,83,42,0.1) 60%);
+    border-radius: 1px; margin-top: 6px; width: 100%;
+  }
+  .file-badge {
+    display: inline-block; font-family: monospace; font-size: 11px;
+    background: rgba(15,13,12,0.07); padding: 2px 7px; border-radius: 3px;
+    color: #555; margin-top: 8px;
+  }
+</style>
+
+<div class="effect-grid">
+
+  <div class="effect-card">
+    <span class="effect-num">effect 01 · scroll-driven</span>
+    <div class="demo-brain">🧠</div>
+    <h3>Hero BrainMap parallax</h3>
+    <p>Brain drifts upward at 0.3× scroll rate. Hero pitch text counter-drifts at −0.08× — creates the illusion of depth layers in the hero.</p>
+    <ul class="spec-list">
+      <li><span class="spec-key">driver</span> useScrollY() → inline transform</li>
+      <li><span class="spec-key">brain</span> translateY(scrollY × 0.3)</li>
+      <li><span class="spec-key">text</span> translateY(scrollY × −0.08)</li>
+      <li><span class="spec-key">clamp</span> stops at hero bottom</li>
+    </ul>
+    <span class="file-badge">src/App.jsx</span>
+  </div>
+
+  <div class="effect-card">
+    <span class="effect-num">effect 02 · mouse-driven</span>
+    <div class="demo-card-tilt">⟲ 3D tilt on hover</div>
+    <h3>Tool card perspective tilt</h3>
+    <p>Cards rotate on X+Y axes as the mouse moves across them — max ±7°. Smooth lerp to flat on mouse leave. <code>transform-origin</code> stays at card center.</p>
+    <ul class="spec-list">
+      <li><span class="spec-key">driver</span> onMouseMove → rotateX/Y</li>
+      <li><span class="spec-key">max tilt</span> 7° on each axis</li>
+      <li><span class="spec-key">perspective</span> 900px on .tools-grid</li>
+      <li><span class="spec-key">reset</span> CSS transition 400ms ease-out</li>
+    </ul>
+    <span class="file-badge">src/Sections.jsx + src/styles.css</span>
+  </div>
+
+  <div class="effect-card">
+    <span class="effect-num">effect 03 · spring physics</span>
+    <div style="display:flex; justify-content:center; margin-bottom: 10px;">
+      <div class="demo-note">measurement is half the science</div>
+    </div>
+    <h3>Marginalia damped oscillator</h3>
+    <p>Each note hangs from a pin at its top center. Scroll velocity injects a push; a spring + damper returns it to vertical. Each note has slightly different stiffness so they settle at different rates.</p>
+    <ul class="spec-list">
+      <li><span class="spec-key">driver</span> useSpring() hook (new, in hooks.jsx)</li>
+      <li><span class="spec-key">axis</span> rotateZ, origin top center</li>
+      <li><span class="spec-key">stiffness</span> 80–100 (varies per note)</li>
+      <li><span class="spec-key">damping</span> 7–10 (varies per note)</li>
+      <li><span class="spec-key">input</span> Δscroll → velocity injection</li>
+    </ul>
+    <span class="file-badge">src/hooks.jsx + src/Sections.jsx</span>
+  </div>
+
+  <div class="effect-card">
+    <span class="effect-num">effect 04 · scroll-progress</span>
+    <div style="padding: 10px 0 8px;">
+      <div style="font-size:13px; font-weight:600; letter-spacing:-0.01em;">Academic path</div>
+      <div class="demo-underbar"></div>
+    </div>
+    <h3>Section title underbar draw-in</h3>
+    <p>The burnt-sienna rule under each section title grows from 0 → 44px as the section header enters view, driven by scroll progress. Currently it just appears; this makes it feel drawn.</p>
+    <ul class="spec-list">
+      <li><span class="spec-key">driver</span> useInView() progress prop</li>
+      <li><span class="spec-key">from</span> width 0px → 44px</li>
+      <li><span class="spec-key">easing</span> cubic-bezier(.25,0,.1,1)</li>
+      <li><span class="spec-key">trigger</span> section-head enters viewport</li>
+    </ul>
+    <span class="file-badge">src/Sections.jsx + src/styles.css</span>
+  </div>
+
+</div>
+
+<p class="subtitle">Implementation order: 04 → 01 → 03 → 02 (simplest to most complex). Each is independently testable. Does this match what you had in mind?</p>
