@@ -12,7 +12,7 @@
   /* ═══════════════════════════════════════════════════
    *  PARAMETERS — safe to edit
    * ═══════════════════════════════════════════════════ */
-  var NUM_FLIES         = 6;     /* max simultaneous flies on screen */
+  var NUM_FLIES         = 10;     /* max simultaneous flies on screen */
   var MIN_SPEED         = 4;     /* walk speed range (px per 100 ms) */
   var MAX_SPEED         = 9;
   var WALK_FRAMES       = 4;     /* usable walking frames (cols 0-3; col 4 is blank) */
@@ -39,6 +39,8 @@
   var ANT_ENCOUNTER_DIST = 18;
   var ANT_AVOID_BOOST   = 1.7;
   var FLY_FOOD_FREEZE_MS = 1600;
+  var MALE_MALE_COURT_MS_MIN = 800;
+  var MALE_MALE_COURT_MS_MAX = 1400;
   /* ═══════════════════════════════════════════════════ */
 
   var SPRITE_URL = 'img/fly-sprite.png';
@@ -64,6 +66,25 @@
   var R2D = 180 / Math.PI;
   var nextFlyId = 1;
 
+  function countLiveFlySexes() {
+    var counts = { male: 0, female: 0 };
+    for (var i = 0; i < flies.length; i++) {
+      if (flies[i].isDead()) continue;
+      counts[flies[i].getSex()] += 1;
+    }
+    return counts;
+  }
+
+  function pickFlySex() {
+    var counts = countLiveFlySexes();
+    var maleTarget = Math.floor(NUM_FLIES / 2);
+    var femaleTarget = NUM_FLIES - maleTarget;
+
+    if (counts.male >= maleTarget) return 'female';
+    if (counts.female >= femaleTarget) return 'male';
+    return counts.male <= counts.female ? 'male' : 'female';
+  }
+
   /* track mouse */
   var mouseX = -9999, mouseY = -9999;
   window.addEventListener('mousemove', function (e) {
@@ -81,7 +102,7 @@
       'background:transparent url(' + SPRITE_URL + ') no-repeat 0 0',
       'image-rendering:pixelated',
       'pointer-events:none',
-      'opacity:0.5',
+      'opacity:0.7',
       'z-index:0',
       'will-change:transform',
     ].join(';');
@@ -94,6 +115,7 @@
     var x = rand(EDGE_RESIST, window.innerWidth  - EDGE_RESIST);
     var y = rand(EDGE_RESIST, window.innerHeight - EDGE_RESIST);
     var id = nextFlyId++;
+    var sex = pickFlySex();
     var frameIdx      = 0;
     var frameTimer    = 0;
     var largeTurnAng  = 0;
@@ -117,6 +139,8 @@
     var thisFly         = null;   /* self-reference, set after object is created */
     var frozen          = false;
     var frozenTimer     = 0;
+    var courtshipTimer  = -1;
+    var courtshipTargetSex = '';
 
     /* edge-flag bitmask → safe heading ° */
     var NEAR_TOP = 1, NEAR_BOT = 2, NEAR_L = 4, NEAR_R = 8;
@@ -173,6 +197,14 @@
       setTimeout(function () { flies.push(makeFly()); }, rand(minDelay, maxDelay));
     }
 
+    function stopCourtship() {
+      pursuing = false;
+      following = false;
+      target = null;
+      courtshipTimer = -1;
+      courtshipTargetSex = '';
+    }
+
     function freezeForFood(antState, duration) {
       var now = performance.now ? performance.now() : Date.now();
       if (dead || frozen) return false;
@@ -181,9 +213,7 @@
       fleeType = '';
       flyStopTimer = -1;
       stationary = true;
-      pursuing = false;
-      following = false;
-      target = null;
+      stopCourtship();
       frozen = true;
       frozenTimer = duration || FLY_FOOD_FREEZE_MS;
       frameIdx = 0;
@@ -238,9 +268,7 @@
         }
         if (nearestAnt && nearestAnt.distance < ANT_AVOID_DIST) {
           stationary = false;
-          pursuing = false;
-          following = false;
-          target = null;
+          stopCourtship();
           angleDeg = Math.atan2(-(y - nearestAnt.ant.y), x - nearestAnt.ant.x) * R2D;
         }
       }
@@ -251,7 +279,7 @@
       if (!fleeing && dist < MOUSE_DIST) {
         fleeing    = true;
         stationary = false;
-        pursuing   = false; following = false; target = null;
+        stopCourtship();
         fleeType   = Math.random() < 0.5 ? 'walk' : 'fly';
         /* angle AWAY from cursor */
         angleDeg   = Math.atan2(-dy, dx) * R2D;
@@ -327,7 +355,7 @@
 
       /* ── social: periodic pursuit check ── */
       pursueCheckTimer -= dt;
-      if (!pursuing && !following && pursueCheckTimer <= 0) {
+      if (sex === 'male' && !pursuing && !following && pursueCheckTimer <= 0) {
         pursueCheckTimer = rand(PURSUE_CHECK_MIN, PURSUE_CHECK_MAX);
         var bodyPxC = BUG_W * zoom;
         for (var si = 0; si < flies.length; si++) {
@@ -341,15 +369,31 @@
           var bearing = Math.atan2(-ody, odx) * R2D;
           var adiff   = ((bearing - angleDeg + 540) % 360) - 180;
           if (Math.abs(adiff) > 90) continue;
-          if (Math.random() < PURSUE_CHANCE) { pursuing = true; target = other; break; }
+          if (Math.random() < PURSUE_CHANCE) {
+            pursuing = true;
+            target = other;
+            courtshipTargetSex = os.sex;
+            courtshipTimer = courtshipTargetSex === 'male'
+              ? rand(MALE_MALE_COURT_MS_MIN, MALE_MALE_COURT_MS_MAX)
+              : -1;
+            break;
+          }
         }
       }
 
       /* ── pursuit / follow execution ── */
       if ((pursuing || following) && target) {
         if (target.isDead() || target.isFleeing()) {
-          pursuing = false; following = false; target = null;
+          stopCourtship();
         } else {
+          if (courtshipTimer > 0) {
+            courtshipTimer -= dt;
+            if (courtshipTimer <= 0) stopCourtship();
+          }
+          if (!target) {
+            draw();
+            return;
+          }
           var ts      = target.getState();
           var bodyPxS = BUG_W * zoom;
           var tdx     = ts.x - x, tdy = ts.y - y;
@@ -357,7 +401,11 @@
           if (pursuing) {
             if (tDist < bodyPxS) {
               pursuing = false;
-              if (Math.random() >= 0.5) { following = true; } else { target = null; }
+              if (Math.random() >= (courtshipTargetSex === 'male' ? 0.85 : 0.5)) {
+                following = true;
+              } else {
+                stopCourtship();
+              }
             } else {
               stationary = false;
               angleDeg   = Math.atan2(-tdy, tdx) * R2D;
@@ -395,7 +443,7 @@
           }
         }
       } else if (pursuing || following) {
-        pursuing = false; following = false; target = null;
+        stopCourtship();
       }
 
       /* toggle stationary */
@@ -474,6 +522,7 @@
     thisFly = {
       id:         id,
       tick:       tick,
+      getSex:     function () { return sex; },
       isDead:     function () { return dead; },
       isFleeing:  function () { return fleeing; },
       isFrozen:   function () { return frozen; },
@@ -490,6 +539,7 @@
           x: x,
           y: y,
           angleDeg: angleDeg,
+          sex: sex,
           zoom: zoom,
           radius: bodyRadius(),
           frozen: frozen
