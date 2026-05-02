@@ -419,7 +419,8 @@ img { max-width: 100%; display: block; }
 .rigs > .reveal { background: var(--paper); }
 @media (max-width: 860px) { .rigs { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .rigs { grid-template-columns: 1fr; } }
-.rig-card { background: var(--paper); padding: 28px 24px; display: flex; flex-direction: column; gap: 14px; height: 100%; }
+.rig-card { background: var(--paper); padding: 0; display: flex; flex-direction: column; gap: 0; height: 100%; overflow: hidden; transform-style: preserve-3d; perspective: 800px; transition: transform 240ms cubic-bezier(.34,1.1,.64,1), box-shadow 240ms ease; }
+.rig-card-body { padding: 22px 24px 26px; display: flex; flex-direction: column; gap: 14px; }
 .rig-num { font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; color: var(--accent); opacity: 0.9; }
 .rig-card h3 { font-family: var(--display); font-size: 24px; margin: 0 0 4px; line-height: 1.2; letter-spacing: var(--display-tracking); }
 .rig-year { font-family: var(--mono); font-size: 13px; letter-spacing: 0.1em; opacity: 0.75; margin-bottom: 8px; }
@@ -772,12 +773,10 @@ img { max-width: 100%; display: block; }
 [data-bg="d"] .marginalia::before { background: rgba(239,233,221,0.4); }
 
 .rig-card {
-  transition: background 180ms, transform 240ms cubic-bezier(.34,1.1,.64,1),
+  transition: transform 240ms cubic-bezier(.34,1.1,.64,1),
               box-shadow 240ms ease;
 }
 .rig-card:hover {
-  background: var(--hover-bg);
-  transform: translateY(-3px);
   box-shadow: 0 8px 24px rgba(15,13,12,0.08);
 }
 

@@ -167,6 +167,46 @@ const ToolsSection = () => {
 };
 
 // ------------------------------ Rigs ------------------------------
+const RigCard = ({ r, i }) => {
+  const Preview = r.preview ? window.ToolPreviews[r.preview] : null;
+  const cardRef = React.useRef(null);
+
+  const handleMouseMove = (e) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    card.style.transform = `translateY(-3px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg)`;
+  };
+  const handleMouseLeave = () => {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transform = '';
+  };
+
+  return (
+    <window.Reveal delay={i * 100}>
+      <div className="rig-card" ref={cardRef}
+           onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+        {Preview && (
+          <div className="tool-preview">
+            <Preview />
+          </div>
+        )}
+        <div className="rig-card-body">
+          <div className="rig-num">R{String(i + 1).padStart(2, "0")}</div>
+          <div>
+            <h3>{r.name}</h3>
+            <div className="rig-year">{r.year}</div>
+            <p>{r.desc}</p>
+          </div>
+        </div>
+      </div>
+    </window.Reveal>
+  );
+};
+
 const RigsSection = () => {
   const rigs = window.SITE_DATA.rigs;
   return (
@@ -175,18 +215,7 @@ const RigsSection = () => {
              sub="Custom-built experimental platforms. Opinionated about sync, boring about reliability."
              margin={<Marginalia rotate={-3} stiffness={102} damping={10}>"if the rig isn't quiet, the data isn't either." — folk wisdom</Marginalia>}>
       <div className="rigs">
-        {rigs.map((r, i) => (
-          <window.Reveal key={i} delay={i * 100}>
-            <div className="rig-card">
-              <div className="rig-num">R{String(i + 1).padStart(2, "0")}</div>
-              <div>
-                <h3>{r.name}</h3>
-                <div className="rig-year">{r.year}</div>
-                <p>{r.desc}</p>
-              </div>
-            </div>
-          </window.Reveal>
-        ))}
+        {rigs.map((r, i) => <RigCard key={i} r={r} i={i} />)}
       </div>
     </Section>
   );

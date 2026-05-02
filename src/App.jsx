@@ -127,7 +127,7 @@ const App = () => {
 
       <footer className="footer">
         <span>© 2026 · rishika mohanta</span>
-        <span>redesigned 2026 · field notebook</span>
+        <span>Built with React, vanilla JS, and some Claude magic.</span>
       </footer>
     </div>
   );

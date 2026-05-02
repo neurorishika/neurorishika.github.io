@@ -32,31 +32,31 @@ window.SITE_DATA = {
   pillars: [
     {
       id: "navigation",
-      title: "Bilateral navigation & olfactory circuits",
-      lede: "How do bilateral sensory comparisons underlie pheromone trail-following — and how does that computation differ when ants smell with 120,000 olfactory neurons and flies with 1,200?",
+      title: "What is the insect olfactory system optimizing for?",
+      lede: "Insects roughly maintain the same olfactory cell classes across species, however they vary in number, distribution, and connectivity. I use comparative neuroanatomy, connectomics, behavior, imaging and modeling to ask what computational problems these circuits are optimized to solve.",
       threads: [
-        { y: "2023–", t: "Bilateral olfactory navigation in O. biroi and Drosophila — using FlyCLOPS and MultiBiOS to compare algorithms across species with 100× difference in olfactory scale (Ruta + Kronauer labs)." },
+        { y: "2023–", t: "Bilateral olfactory navigation in O. biroi and Drosophila — using MultiCLOPS and MultiBiOS to compare behavioral algorithms across species with massive difference in olfactory scale (Ruta + Kronauer labs)." },
         { y: "2026",   t: "First neuroanatomical reference brain for the clonal raider ant — published in Current Biology; now a shared community resource." },
         { y: "2019–21", t: "Locust antennal-lobe dynamics under fluctuating and overlapping odor inputs (Assisi Lab)." },
       ],
     },
     {
       id: "learning",
-      title: "Value, memory & decision-making",
-      lede: "Flies, ants, and mice all learn from reward and punishment, but the circuits look wildly different. I use behavior + imaging + models to ask what computational rules they share.",
+      title: "How do you go from sensory representation to dynamic learning?",
+      lede: "Whether it's a fly learning to associate an odor with food, a mouse learning the way in a maze, or an human changing their preferences based on experience, all brains need to update their behavior based on new information. I use model-driven experimentation to reverse-engineer the learning rules that govern this process across species.",
       threads: [
-        { y: "2022–23", t: "Choice engineering in fruit flies — model-driven manipulation of olfactory decisions (Turner Lab + DeepMind)." },
-        { y: "2023",    t: "Enumerating maximally discriminative tasks to probe foraging strategies (Hermundstad Lab · CCN 2023, Cosyne 2024)." },
+        { y: "2022–23", t: "Choice engineering in fruit flies — model-driven manipulation of olfactory decisions (Turner Lab + Google DeepMind)." },
+        { y: "2023",    t: "Enumerating maximally discriminative tasks to probe foraging strategies across species (Turner Lab + Hermundstad Lab · CCN 2023, Cosyne 2024)." },
         { y: "2019",    t: "Olfactory learning in closed-loop fly-on-ball VR (Turner Lab · Janelia)." },
       ],
     },
     {
       id: "tools",
       title: "Tools for neuroethology",
-      lede: "Comparative work needs comparable data — shared rigs, shared pipelines, shared reference frames. Most of my tools exist because I needed them for my own science, and kept getting useful to others.",
+      lede: "Comparative work needs comparable data — and I find that the tools to get that data don't exist yet. Spanning hardware and software, I build the tools I need to do my science, and design them to be useful to others asking similar questions in different systems.",
       threads: [
         { y: "2025–", t: "HYDRA Suite — multi-animal tracking, pose labeling, and interactive proofreading in one toolkit." },
-        { y: "2023–", t: "FlyCLOPS · FlyProjection · MultiBiOS — closed-loop optogenetic trail system, visual arena, and bilateral olfactometer for comparative neuroethology." },
+        { y: "2023–", t: "MultiCLOPS · MultiBiOS — closed-loop optogenetic trail system, and bilateral olfactometer for comparative neuroethology." },
         { y: "2019",  t: "Parallel TensorFlow framework for biological neural-network simulation (published in NBDT)." },
       ],
     },
@@ -84,7 +84,7 @@ window.SITE_DATA = {
       preview: "map",
     },
     {
-      name: "FlyManager",
+      name: "D. Manager",
       tag: "lab ops",
       status: "stable",
       year: "2023",
@@ -106,9 +106,10 @@ window.SITE_DATA = {
   ],
 
   rigs: [
-    { name: "Fly-on-ball olfactory VR", year: "2019 · Turner Lab · Janelia", desc: "Closed-loop walking arena with calibrated odor delivery, used to probe how olfactory learning shapes exploratory behavior in Drosophila." },
-    { name: "FlyCLOPS optogenetic trail system", year: "2023 · Ruta Lab · Rockefeller", desc: "Closed-loop optogenetic system for virtual pheromone trail following. Light activation of specific olfactory receptor neurons generates bilateral odor gradients in freely-walking flies — no chemistry required." },
-    { name: "MultiBiOS bilateral olfactometer", year: "2024 · Ruta + Kronauer Labs · Rockefeller", desc: "Hardware-clocked bilateral odor delivery (NI-DAQ + Teensy 4.1) for comparative pheromone trail-following experiments in both ants and flies." },
+    { name: "Fly-on-ball olfactory VR", year: "2019 · Turner Lab · Janelia", desc: "Closed-loop walking arena with calibrated odor delivery, used to probe how olfactory learning shapes exploratory behavior in Drosophila.", preview: "flyball" },
+    { name: "16FlYMaze", year: "2022 · Turner Lab · Janelia", desc: "High-throughput 2AFC olfactory maze for flies, used to probe perseverance and other decision-making strategies in olfactory learning.", preview: "maze" },
+    { name: "MultiCLOPS optogenetic trail system", year: "2023 · Ruta Lab · Rockefeller", desc: "Closed-loop optogenetic system for virtual pheromone trail following. Light activation of specific olfactory receptor neurons generates bilateral odor gradients in freely-walking flies — no chemistry required.", preview: "clops" },
+    { name: "MultiBiOS bilateral olfactometer", year: "2024 · Ruta + Kronauer Labs · Rockefeller", desc: "Hardware-clocked bilateral odor delivery (NI-DAQ + Teensy 4.1) for comparative pheromone trail-following experiments in both ants and flies.", preview: "bios" },
   ],
 
   publications: [
@@ -206,11 +207,11 @@ window.SITE_DATA = {
   ],
 
   teaching: [
-    { y: "2025",      t: "Journal Club Mentor · Rockefeller Summer Neuroscience Program." },
-    { y: "2024–",     t: "Research mentor to Ruta Lab Research Assistant — FlyCLOPS operation, experimental design, and data analysis." },
+    { y: "2026–",     t: "Research mentor to Ruta Lab Research Assistant — MultiCLOPS operation, experimental design, and data analysis." },
+    { y: "2025–",     t: "Community Book Club at Rockefeller — secured microgrant from the Office of University Life; brought Dr. Azra Raza and Dr. Nathan Lents into conversation with students, postdocs, and staff across departments." },
     { y: "2024",      t: "Co-organizer · HHMI Janelia Conference on 'Bridging Diverse Perspectives on the Mechanistic Basis of Foraging' — brought together systems neuroscientists, ethologists, ecologists, and theorists; seeded a Trends in Neurosciences review." },
-    { y: "2023–",     t: "Community Book Club at Rockefeller — secured microgrant from the Office of University Life; brought Dr. Azra Raza and Dr. Nathan Lents into conversation with students, postdocs, and staff across departments." },
     { y: "2023–",     t: "Annual volunteer · Science Saturday (RockEDU) — interactive tables for the Kronauer ant lab and Ruta optogenetics lab." },
+    { y: "2023–",      t: "Journal Club Mentor · Rockefeller Summer Neuroscience Program." },
     { y: "2023",      t: "Lead TA · Neuromatch Deep Learning Summer School — supervised 6 TAs, mentored 10 international students across 3 weeks (120 h)." },
     { y: "2023",      t: "Mentor · Tri-Institute Mentorship Initiative — 1-on-1 mentoring for a graduate school applicant." },
     { y: "2021",      t: "Project TA · Neuromatch Deep Learning — mentored 7 international student groups across 3 weeks." },
@@ -219,18 +220,19 @@ window.SITE_DATA = {
   ],
 
   timeline: [
-    { y: "2023–",    t: "PhD · David Rockefeller Graduate Program in Biosciences",       sub: "The Rockefeller University · Ruta & Kronauer Labs" },
+    { y: "2023–",    t: "PhD · David Rockefeller Graduate Program in Biosciences",       sub: "Ruta & Kronauer Labs · The Rockefeller University" },
     { y: "2022–23",  t: "Research Technician & Offsite Consultant",                       sub: "Turner Lab · HHMI Janelia" },
     { y: "2017–22",  t: "Integrated BS-MS in Biology · CGPA 9.8/10 · with Distinction",  sub: "IISER Pune" },
-    { y: "2019",     t: "Janelia Undergraduate Scholar",                                   sub: "Turner Lab · HHMI Janelia" },
+    { y: "2019", t: "Janelia Undergraduate Scholar", sub: "Turner Lab · HHMI Janelia" },
+    { y: "2018–21",  t: "Student Researcher",                                                            sub: "Assisi Lab · IISER Pune" },
     { y: "2018",     t: "Summer intern · chemical ecology",                                sub: "NICE Lab · NCBS Bangalore" },
   ],
 
   nowArchive: [
-    { m: "April 2026",   items: ["Bilateral navigation experiments · FlyCLOPS + MultiBiOS", "HYDRA Suite v1.0 shipping", "Reviewing comparative MB anatomy across hymenoptera"] },
-    { m: "January 2026", items: ["Starting bilateral navigation behavioral experiments", "Cosyne 2026 abstract submitted"] },
-    { m: "October 2025", items: ["Finishing ant reference brain manuscript revisions", "NS&B course at MBL Woods Hole"] },
-    { m: "July 2025",    items: ["HYDRA Suite architecture revamp", "Reading: The Ants (Hölldobler & Wilson)"] },
+    { m: "April 2026",   items: ["Bilateral navigation experiments", "HYDRA Suite v0.1 beta testing"] },
+    { m: "January 2026", items: ["MultiBiOS hardware assembly and testing", "HYDRA Suite feature expansion", "Ant reference brain codebase cleanup and documentation"] },
+    { m: "October 2025", items: ["MultiBiOS firmware development and testing"] },
+    { m: "July 2025",    items: ["NS&B course at MBL Woods Hole", "Ant reference brain manuscript revisions", "HYDRA Suite conception"] },
   ],
 
   toolDeepDives: {
@@ -261,7 +263,7 @@ window.SITE_DATA = {
         "Batch export to CSV / HDF5 for downstream analysis",
         "Multi-backend GPU support: NVIDIA CUDA, Apple Silicon MPS, AMD ROCm",
       ],
-      stack: "Python · PyTorch · YOLOv8 · OpenCV",
+      stack: "Python · PyTorch · YOLOv26 · OpenCV",
       status: "beta · active development",
     },
     "FlyProjection": {
