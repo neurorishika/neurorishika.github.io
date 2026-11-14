@@ -9,8 +9,8 @@
   'use strict';
 
   /* ─── PARAMETERS ───────────────────────────────────────────── */
-  var NUM_NURSES        = 30;
-  var NUM_FORAGERS      = 10;
+  var NUM_NURSES        = 12;
+  var NUM_FORAGERS      = 5;
   var ANT_R             = 1.35;
 
   var NURSE_SPEED       = 0.55;
@@ -97,8 +97,28 @@
   var NEST_PAUSE_MAX    = 1300;
   var RECRUIT_TIMEOUT   = 14000;
   var RECRUIT_VOLATILE_R = 110;  /* volatile odor radius — ants within this of nest get recruited */
-  var ANT_COLLISION_R   = 10;
-  var ANT_COLLISION_TURN_R = 18;
+  var ANT_COLLISION_R   = 5;     /* ≈ body width: ants can squeeze past each other */
+  var ANT_COLLISION_TURN_R = 9;
+  var MEET_PAUSE_MS     = 220;   /* head-on meeting on a trail: brief antennation pause, then pass */
+  var MEET_COOLDOWN_MS  = 900;
+  var TRAIL_WINDOW      = 6;     /* trail points searched either side of an ant's last position */
+  var LOST_GIVEUP_MS    = 1500;  /* an on-trail forager that loses the trail this long goes back to exploring */
+  var NEST_ESTABLISH_MAX_WAIT_MS = 4000; /* once every ant has arrived, settle the nest within this long */
+
+  /* Raids end in one of two real outcomes, decided by prey size:
+   *   small prey → retrieval: each ant reaching it picks up a piece and carries it home;
+   *   large prey → emigration: once enough ants reach it, the colony moves there,
+   *                nurses carrying the larvae along the trail. */
+  var LARGE_PREY_CHANCE   = 0.3;
+  var PREY_ITEMS_MIN      = 4;     /* pieces of a small prey item */
+  var PREY_ITEMS_MAX      = 8;
+  var FLY_PREY_ITEMS      = 3;
+  var EMIGRATE_FRACTION   = 0.35;  /* fraction of the colony that must reach large prey to trigger emigration */
+  var EMIGRATE_SPEED_MULT = 0.5;   /* emigration columns move slower than the initial arrival */
+  var RECRUIT_FRACTION    = 0.4;   /* fraction of idle nurses near the nest recruited per successful return */
+  var RAID_MAX_MS         = 70000; /* hard cap on a raid, so it can never jam the colony forever */
+  var RAID_AFTER_EMPTY_MS = 25000; /* after the prey is gone, stragglers get this long before the raid is closed */
+  var NEST_FOOD_FADE_MS   = 30000; /* delivered pieces sit at the nest, slowly eaten */
   var NEST_CLUSTER_RADIUS = 95;
   var NEST_MIN_SPACING_SCALE = 0.42;
   var NEST_MIN_TURN_SCALE = 0.5;
@@ -115,7 +135,7 @@
   var TRAIL_LOOKAHEAD     = 2;     /* trail waypoints to look ahead when on-trail */
   var TRAIL_LOCK_R        = 8;     /* must be within this of nearest point to be "on trail" */
   var NURSE_DEPART_STAGGER = 350;  /* ms between each nurse's departure on a trail */
-  var LARVA_COUNT        = 32;
+  var LARVA_COUNT        = 10;
   var LARVA_SIGMA_X      = 18;
   var LARVA_SIGMA_Y      = 12;
   var LARVA_SQUIRM_SHIFT = 1.4;
@@ -128,9 +148,13 @@
   var larvae = [];
   var migrationTrail = null;
   var activeFood = null;
+  var emigrating = false;
+  var larvaCarriers = 0;      /* larvae actually being carried in the current move */
+  var nestFood = [];
   var raidRefractoryTimer = 0;
   var nestEstablished = false;
   var nestEstablishTimer = 0;
+  var allArrivedTimer = 0;
   var lastT  = null;
   var nextAntId = 1;
   var D2R    = Math.PI / 180;
@@ -218,13 +242,15 @@
   }
 
   function getLarvaEstablishThreshold() {
-    return Math.max(1, Math.ceil(LARVA_COUNT * LARVA_ESTABLISH_FRACTION));
+    /* each ant carries at most one larva, so never require more larvae than there are carriers */
+    var carried = emigrating ? larvaCarriers : Math.min(LARVA_COUNT, ants.length);
+    return Math.max(1, Math.ceil(carried * LARVA_ESTABLISH_FRACTION));
   }
 
   function getDroppedLarvaCount() {
     var count = 0;
     for (var i = 0; i < larvae.length; i++) {
-      if (larvae[i].active) count++;
+      if (larvae[i].atNest) count++;
     }
     return count;
   }
@@ -342,7 +368,12 @@
     if (!ant.carryingLarva || ant.larvaIndex < 0) return;
     larva = larvae[ant.larvaIndex];
     if (!larva) return;
+    if (emigrating) {   /* lay it down in the new brood pile */
+      larva.x = colonyX + gauss() * LARVA_SIGMA_X;
+      larva.y = colonyY + gauss() * LARVA_SIGMA_Y;
+    }
     larva.active = true;
+    larva.atNest = true;
     ant.carryingLarva = false;
     ant.larvaIndex = -1;
   }
@@ -426,7 +457,7 @@
     targetY = target.y + normalY * weave;
     targetD = dst(ant.x, ant.y, targetX, targetY);
 
-    ant.speed = ant.type === 'nurse' ? SETTLE_SPEED * 0.85 : SETTLE_SPEED;
+    ant.speed = (ant.type === 'nurse' ? SETTLE_SPEED * 0.85 : SETTLE_SPEED) * (emigrating ? EMIGRATE_SPEED_MULT : 1);
     ant.angle += aDiff(ant.angle, aDeg(ant.x, ant.y, targetX, targetY)) * steer;
     ant.angle += (Math.random() < 0.5 ? -1 : 1) * rand(0.05, 0.45);
 
@@ -492,8 +523,24 @@
   function finalizeNestEstablishment() {
     nestEstablished = true;
     nestEstablishTimer = 0;
+    allArrivedTimer = 0;
 
-    for (var li = 0; li < larvae.length; li++) larvae[li].active = true;
+    for (var li = 0; li < larvae.length; li++) {
+      var lv = larvae[li];
+      if (!lv.atNest && emigrating) {
+        /* left behind in the old pile: stays visible there until a nurse fetches it */
+        lv.active = true; lv.stray = true; lv.claimedBy = 0;
+        continue;
+      }
+      lv.active = true;
+      lv.atNest = true;
+    }
+    if (emigrating) {   /* the colony now lives at the old prey site */
+      emigrating = false;
+      activeFood = null;
+      trails = [];
+      raidRefractoryTimer = RAID_REFRACTORY_MS;
+    }
 
     for (var i = 0; i < ants.length; i++) {
       var ant = ants[i];
@@ -508,6 +555,11 @@
       ant.migrationSettled = true;
       ant.carryingLarva = false;
       ant.larvaIndex = -1;
+      ant.carryingFood = false;
+      ant.fromFood = false;
+      ant.departDelay = 0;
+      ant.emigrateDirect = false;
+      ant.pickedUpLarva = false;
 
       if (ant.type === 'nurse') {
         resetNurseToWander(ant);
@@ -535,18 +587,25 @@
     if (settledCount >= getNestEstablishThreshold() && droppedLarvae >= getLarvaEstablishThreshold()) nestEstablishTimer += dt;
     else nestEstablishTimer = 0;
 
-    if (nestEstablishTimer >= NEST_ESTABLISH_HOLD_MS) finalizeNestEstablishment();
+    /* safety net: once every ant has arrived, don't wait forever for a perfect cluster */
+    var allArrived = true;
+    for (var ai = 0; ai < ants.length; ai++) if (!ants[ai].migrationSettled) { allArrived = false; break; }
+    allArrivedTimer = allArrived ? allArrivedTimer + dt : 0;
+
+    if (nestEstablishTimer >= NEST_ESTABLISH_HOLD_MS || allArrivedTimer >= NEST_ESTABLISH_MAX_WAIT_MS) finalizeNestEstablishment();
   }
 
-  function getFoodReachThreshold() {
-    return Math.max(1, Math.ceil(ants.length * FOOD_CONSUME_FRACTION));
+  function getEmigrateThreshold() {
+    return Math.max(2, Math.ceil(ants.length * EMIGRATE_FRACTION));
   }
 
-  /* Phase 1 of raid end: food is depleted. Foragers heading to food turn back; nurses
-   * that are outbound or at food turn around to inbound. activeFood stays non-null. */
+  /* Small prey has been carried off completely. Foragers heading to it turn back;
+   * outbound nurses turn back one by one; the trail stops being reinforced and fades. */
   function consumeFood() {
     if (!activeFood || activeFood.consumed) return;
     activeFood.consumed = true;
+    activeFood.emptiedAt = performance.now();
+    if (activeFood.trail) activeFood.trail.foodAvailable = false;
     insectWorld.pendingFlyFoods = [];
 
     for (var i = 0; i < ants.length; i++) {
@@ -558,46 +617,166 @@
         } else if (ant.state === 'at_nest') {
           ant.trail = null;
         }
-        /* on_trail foragers get individual staggered give-up timers so they peel off the trail
-         * one by one rather than all arriving at the empty food site simultaneously */
+        /* staggered give-up timers so they peel off the trail one by one */
         if (ant.state === 'on_trail') ant.giveUpTimer = rand(500, 3500);
         ant.foodX = 0; ant.foodY = 0;
+      } else if (ant.nurseState === 'outbound') {
+        ant.giveUpTimer = rand(300, 3000);
       }
-      /* nurses walk all the way to the food site and discover it empty there — no early U-turn */
     }
   }
 
-  /* Phase 2: called every frame after food consumed. Once every recruited nurse has
-   * returned to wander state (none left in outbound/nurse_at_food/inbound), the raid
-   * is over and new food can spawn. */
-  function checkRaidEnd() {
-    if (!activeFood || !activeFood.consumed) return;
-    for (var i = 0; i < ants.length; i++) {
-      var a = ants[i];
-      if (a.type !== 'nurse') continue;
-      if (a.nurseState === 'outbound' || a.nurseState === 'nurse_at_food' || a.nurseState === 'inbound') return;
+  /* Ends the raid once nobody is still on the way to or from the prey, or after a hard cap. */
+  function checkRaidEnd(now) {
+    if (!activeFood || emigrating) return;
+    var overdue = now - activeFood.createdAt > RAID_MAX_MS ||
+      (activeFood.consumed && now - activeFood.emptiedAt > RAID_AFTER_EMPTY_MS);
+    if (!activeFood.consumed && !overdue) return;
+    if (!overdue) {
+      for (var i = 0; i < ants.length; i++) {
+        var a = ants[i];
+        if (a.type === 'nurse' && (a.nurseState === 'outbound' || a.nurseState === 'nurse_at_food' || a.nurseState === 'inbound')) return;
+        if (a.type === 'forager' && (a.state === 'on_trail' || a.state === 'found_food')) return;
+      }
+    } else {
+      /* close it out: everyone still on a mission heads home (laden ants still deliver) */
+      for (var j = 0; j < ants.length; j++) {
+        var b = ants[j];
+        if (b.type === 'nurse' && (b.nurseState === 'outbound' || b.nurseState === 'nurse_at_food')) sendNurseHome(b);
+        if (b.type === 'forager' && (b.state === 'on_trail' || b.state === 'found_food' || b.state === 'recruited')) {
+          b.state = 'explore'; b.trail = null; b.speed = SPEED_EXPLORE; b.giveUpTimer = 0;
+        }
+      }
     }
-    activeFood = null;
-    trails = [];
-    for (var j = 0; j < ants.length; j++) ants[j].trail = null;
+    if (activeFood.trail) activeFood.trail.foodAvailable = false;
+    activeFood = null;   /* trails are left to fade on their own; ants walking one keep following it home */
     raidRefractoryTimer = RAID_REFRACTORY_MS;
   }
 
-  function registerFoodReach(ant) {
-    if (!activeFood || activeFood.consumed) return;
-    if (activeFood.reachedAntIds[ant.id]) return;
+  /* An ant reaches the prey. Small prey: take a piece (if any left). Large prey: count arrivals. */
+  function arriveAtFood(ant) {
+    ant.fromFood = true;
+    if (!activeFood || activeFood.consumed) return false;
+    if (activeFood.large) {
+      if (!activeFood.arrivedIds[ant.id]) {
+        activeFood.arrivedIds[ant.id] = true;
+        activeFood.arrivals++;
+        if (activeFood.arrivals >= getEmigrateThreshold()) startEmigration();
+      }
+      return false;
+    }
+    if (activeFood.items > 0 && !ant.carryingFood) {
+      activeFood.items--;
+      ant.carryingFood = true;
+      if (activeFood.items === 0) consumeFood();
+      return true;
+    }
+    return false;
+  }
 
-    activeFood.reachedAntIds[ant.id] = true;
-    activeFood.reachedCount++;
+  function deliverFood(ant, now) {
+    if (!ant.carryingFood) return;
+    ant.carryingFood = false;
+    nestFood.push({ x: colonyX + gauss() * 9, y: colonyY + gauss() * 6, t: now });
+  }
 
-    if (activeFood.reachedCount >= getFoodReachThreshold()) consumeFood();
+  /* A returning ant that reached the prey stirs up a wave of recruits at the nest:
+   * a fraction of the idle nurses nearby, plus any foragers there. */
+  function recruitWave(now) {
+    if (!activeFood || activeFood.consumed || emigrating) return;
+    var trail = activeFood.trail;
+    if (!trail || !trailFresh(trail, now)) return;
+    var idle = [];
+    for (var i = 0; i < ants.length; i++) {
+      var a = ants[i];
+      if (dst(a.x, a.y, colonyX, colonyY) > RECRUIT_VOLATILE_R) continue;
+      if (a.type === 'nurse') {
+        if (a.nurseState === 'move' || a.nurseState === 'groom' || a.nurseState === 'turn') idle.push(a);
+      } else if (a.state === 'explore') {
+        a.state = 'on_trail'; a.trail = trail; a.speed = SPEED_ON_TRAIL; a.giveUpTimer = 0;
+      }
+    }
+    for (var k = idle.length - 1; k > 0; k--) { var r = randInt(0, k); var tmp = idle[k]; idle[k] = idle[r]; idle[r] = tmp; }
+    var n = idle.length ? Math.max(1, Math.ceil(idle.length * RECRUIT_FRACTION)) : 0;
+    for (var m = 0; m < n; m++) {
+      idle[m].nurseState = 'outbound';
+      idle[m].trail = trail;
+      idle[m].nurseTimer = m * NURSE_DEPART_STAGGER;
+      idle[m].giveUpTimer = 0;
+      idle[m].speed = 0;
+    }
+  }
+
+  /* Large prey: the colony moves to it. The trail (prey → nest) becomes the migration
+   * route (nest → prey); nurses nearest the old nest pick up the larvae. */
+  function startEmigration() {
+    var f = activeFood, trail = f.trail;
+    var oldX = colonyX, oldY = colonyY, i;
+    var pts = [{ x: oldX, y: oldY }];
+    if (trail && trail.points.length >= 2) {
+      for (i = trail.points.length - 1; i >= 0; i--) pts.push({ x: trail.points[i].x, y: trail.points[i].y });
+    } else {   /* no usable trail (prey very close to the nest): walk a straight route */
+      var n = Math.max(2, Math.round(dst(oldX, oldY, f.x, f.y) / 16));
+      for (i = 1; i < n; i++) pts.push({ x: oldX + (f.x - oldX) * i / n, y: oldY + (f.y - oldY) * i / n });
+    }
+    pts.push({ x: f.x, y: f.y });
+    pts = smoothPolyline(pts, 1);
+    for (i = 0; i < pts.length; i++) { pts[i].t = 0; pts[i].strength = 0; }
+    migrationTrail = { points: pts };
+
+    emigrating = true;
+    nestEstablished = false;
+    nestEstablishTimer = 0;
+    allArrivedTimer = 0;
+    colonyX = f.x;
+    colonyY = f.y;
+    f.consumed = true;               /* the prey becomes the new nest site */
+    if (trail) trail.foodAvailable = false;
+    insectWorld.pendingFlyFoods = [];
+
+    /* the old brood pile no longer counts as "at the nest": only larvae laid at the new site do */
+    for (i = 0; i < larvae.length; i++) { larvae[i].atNest = false; larvae[i].stray = false; larvae[i].claimedBy = 0; }
+
+    /* larva carriers: ants closest to the old nest (never ones already at the new site) */
+    var atNewSite = function (a) { return dst(a.x, a.y, colonyX, colonyY) < NEST_ESTABLISH_RADIUS * 0.58; };
+    var byHome = ants.filter(function (a) { return !atNewSite(a); })
+      .sort(function (a, b) { return dst(a.x, a.y, oldX, oldY) - dst(b.x, b.y, oldX, oldY); });
+    for (i = 0; i < ants.length; i++) { ants[i].carryingLarva = false; ants[i].larvaIndex = -1; }
+    larvaCarriers = Math.min(byHome.length, larvae.length);
+    for (i = 0; i < larvaCarriers; i++) {
+      byHome[i].carryingLarva = true;
+      byHome[i].larvaIndex = i;
+    }
+
+    /* queue order along the route: whoever is furthest along leads */
+    var prog = ants.map(function (a) {
+      var bi = 0, bd = Infinity;
+      for (var k = 0; k < pts.length; k++) { var d = dst(a.x, a.y, pts[k].x, pts[k].y); if (d < bd) { bd = d; bi = k; } }
+      return { a: a, idx: bi, d: bd };
+    }).sort(function (p, q) { return q.idx - p.idx; });
+    var homeRank = 0;
+    for (i = 0; i < prog.length; i++) {
+      var a = prog[i].a;
+      a.migrationOrder = i;
+      a.migrationIdx = prog[i].idx;
+      a.migrationSpawned = true;
+      a.spawnDelay = 0;
+      a.justReleasedTimer = 0;
+      a.pickedUpLarva = false;
+      a.carryingFood = false;
+      a.trail = null;
+      a.migrationSettled = dst(a.x, a.y, colonyX, colonyY) < NEST_ESTABLISH_RADIUS * 0.58;
+      a.emigrateDirect = !a.migrationSettled && prog[i].d > 40;   /* far from the route: walk straight there */
+      a.departDelay = (!a.migrationSettled && dst(a.x, a.y, oldX, oldY) < 70) ? (homeRank++) * rand(250, 500) : 0;
+      if (a.migrationSettled) resetAggregationTarget(a, 0);
+    }
   }
 
   function findNearestTrail(x, y, now) {
     var best = null, bestD = Infinity;
     for (var ti = 0; ti < trails.length; ti++) {
       var t = trails[ti];
-      if (!trailFresh(t, now)) continue;
+      if (!trailFresh(t, now) || t.foodAvailable === false) continue;
       for (var pi = 0; pi < t.points.length; pi++) {
         var d = dst(x, y, t.points[pi].x, t.points[pi].y);
         if (d < bestD) { bestD = d; best = t; }
@@ -615,8 +794,9 @@
       trail.points.push({ x: ant.x, y: ant.y, t: now, strength: 1 });
   }
 
-  function triggerFoodFind(ant, now, foodX, foodY) {
+  function triggerFoodFind(ant, now, foodX, foodY, kind) {
     if (activeFood || !nestEstablished || raidRefractoryTimer > 0) return false;
+    var large = kind !== 'fly' && Math.random() < LARGE_PREY_CHANCE;
 
     var nextFoodX = typeof foodX === 'number' ? foodX : ant.x;
     var nextFoodY = typeof foodY === 'number' ? foodY : ant.y;
@@ -625,8 +805,13 @@
       x: nextFoodX,
       y: nextFoodY,
       createdAt: now,
-      reachedCount: 0,
-      reachedAntIds: {}
+      large: large,
+      items: large ? 0 : (kind === 'fly' ? FLY_PREY_ITEMS : randInt(PREY_ITEMS_MIN, PREY_ITEMS_MAX)),
+      arrivals: 0,
+      arrivedIds: {},
+      consumed: false,
+      emptiedAt: 0,
+      trail: null
     };
 
     ant.state     = 'found_food';
@@ -635,12 +820,14 @@
     ant.foodX     = nextFoodX;
     ant.foodY     = nextFoodY;
 
-    registerFoodReach(ant);
+    arriveAtFood(ant);
     return true;
   }
 
   function canClaimFlyFood(ant) {
-    return nestEstablished && ant.type === 'forager' && (ant.state === 'explore' || ant.state === 'recruited');
+    /* only when a kill would start a raid: otherwise the fly would die for nothing */
+    return nestEstablished && !activeFood && raidRefractoryTimer <= 0 &&
+      ant.type === 'forager' && (ant.state === 'explore' || ant.state === 'recruited');
   }
 
   function steerAwayFromPoint(ant, x, y, weight) {
@@ -690,6 +877,13 @@
     ant.y = Math.max(2, Math.min(H - 2, ant.y));
   }
 
+  /* -1 heading to food along a trail, +1 heading home along a trail, 0 not trail-following */
+  function trailDir(ant) {
+    if (!ant.trail) return 0;
+    if (ant.type === 'nurse') return ant.nurseState === 'outbound' ? -1 : ant.nurseState === 'inbound' ? 1 : 0;
+    return ant.state === 'on_trail' ? -1 : ant.state === 'return_on_trail' ? 1 : 0;
+  }
+
   function resolveAntOverlaps() {
     for (var i = 0; i < ants.length; i++) {
       var antA = ants[i];
@@ -702,6 +896,15 @@
         var d = Math.sqrt(dx * dx + dy * dy);
         var minDist = (desiredAntSpacing(antA) + desiredAntSpacing(antB)) * 0.5;
         if (d >= minDist) continue;
+        /* opposite directions on the same trail: antennate briefly, then slip past */
+        var dirA = trailDir(antA), dirB = trailDir(antB);
+        if (dirA && dirB && dirA !== dirB && antA.trail === antB.trail) {
+          if (!antA.meetCooldown && !antB.meetCooldown) {
+            antA.meetTimer = antB.meetTimer = MEET_PAUSE_MS;
+            antA.meetCooldown = antB.meetCooldown = MEET_COOLDOWN_MS;
+          }
+          continue;
+        }
         if (d === 0) {
           dx = Math.random() - 0.5;
           dy = Math.random() - 0.5;
@@ -747,7 +950,7 @@
         }
       }
       if (best) {
-        triggerFoodFind(best, now, req.x, req.y);
+        triggerFoodFind(best, now, req.x, req.y, 'fly');
         req.claimed = true;
       }
     }
@@ -760,8 +963,9 @@
   /* ─── MOVEMENT PRIMITIVES ───────────────────────────────────── */
   function stepAnt(ant, dt) {
     var ar = ant.angle * D2R;
-    var dx = Math.cos(ar) * ant.speed * (dt / 100);
-    var dy = Math.sin(ar) * ant.speed * (dt / 100);
+    var slow = ant.meetTimer > 0 ? 0.15 : 1;
+    var dx = Math.cos(ar) * ant.speed * slow * (dt / 100);
+    var dy = Math.sin(ar) * ant.speed * slow * (dt / 100);
     ant.x = Math.max(2, Math.min(W - 2, ant.x + dx));
     ant.y = Math.max(2, Math.min(H - 2, ant.y + dy));
     ant.legPhase = (ant.legPhase + Math.sqrt(dx*dx + dy*dy) * 0.75) % (Math.PI * 2);
@@ -875,6 +1079,25 @@
     }
 
     if (!ant.migrationSettled) {
+      if (emigrating) {
+        /* wait your turn at the old nest, then pick up your larva and go */
+        if (ant.departDelay > 0) { ant.departDelay -= dt; ant.speed = 0; return; }
+        if (ant.carryingLarva && !ant.pickedUpLarva) {
+          var lv = larvae[ant.larvaIndex];
+          if (lv) { lv.active = false; lv.atNest = false; }
+          ant.pickedUpLarva = true;
+        }
+        if (ant.emigrateDirect) {   /* away from the route: head straight for the new nest */
+          ant.speed = (ant.type === 'nurse' ? SETTLE_SPEED * 0.85 : SETTLE_SPEED) * EMIGRATE_SPEED_MULT;
+          goalMove(ant, dt, aDeg(ant.x, ant.y, colonyX, colonyY));
+          if (dst(ant.x, ant.y, colonyX, colonyY) < NEST_ESTABLISH_RADIUS * 0.58) {
+            ant.migrationSettled = true;
+            resetAggregationTarget(ant, 0);
+            dropLarva(ant);
+          }
+          return;
+        }
+      }
       var followResult = followMigrationStep(ant, dt);
       if (followResult === 'nest' || dst(ant.x, ant.y, colonyX, colonyY) < NEST_ESTABLISH_RADIUS * 0.58) {
         ant.migrationSettled = true;
@@ -941,18 +1164,32 @@
   function followTrailStep(ant, trail, dir, moveSpeed, dt, now) {
     var nearest = -1, nearestD = Infinity;
     var lanePoint;
-    for (var pi = 0; pi < trail.points.length; pi++) {
-      var d = dst(ant.x, ant.y, trail.points[pi].x, trail.points[pi].y);
-      if (d < nearestD) { nearestD = d; nearest = pi; }
+    /* search near where this ant last was on the trail, so loops in the trail can't
+     * make it jump ahead or back; fall back to the whole trail when (re)acquiring */
+    var lo = 0, hi = trail.points.length - 1;
+    if (ant.trailRef === trail && ant.trailIdx >= 0) {
+      lo = Math.max(0, ant.trailIdx - TRAIL_WINDOW);
+      hi = Math.min(trail.points.length - 1, ant.trailIdx + TRAIL_WINDOW);
     }
+    for (var pass = 0; pass < 2 && (nearest < 0 || nearestD > TRAIL_REACQUIRE_R); pass++) {
+      if (pass === 1) { lo = 0; hi = trail.points.length - 1; nearest = -1; nearestD = Infinity; }
+      for (var pi = lo; pi <= hi; pi++) {
+        var d = dst(ant.x, ant.y, trail.points[pi].x, trail.points[pi].y);
+        if (d < nearestD) { nearestD = d; nearest = pi; }
+      }
+    }
+    ant.trailRef = trail;
+    ant.trailIdx = nearest;
     if (nearest < 0 || nearestD > TRAIL_REACQUIRE_R) {
       ant.speed = moveSpeed * 0.5;
       bugMove(ant, dt, 22);
       return 'lost';
     }
-    trail.points[nearest].t = now;
-    trail.lastTouchedAt = now;
-    trail.points[nearest].strength = Math.min(MAX_TRAIL_STRENGTH, (trail.points[nearest].strength || 0) + 0.4);
+    if (trail.foodAvailable !== false && activeFood && !activeFood.consumed) {
+      trail.points[nearest].t = now;
+      trail.lastTouchedAt = now;
+      trail.points[nearest].strength = Math.min(MAX_TRAIL_STRENGTH, (trail.points[nearest].strength || 0) + 0.4);
+    }
     /* Approach mode: detected but off-trail — hard-steer toward nearest point */
     if (nearestD > TRAIL_LOCK_R) {
       lanePoint = getTrailLanePoint(trail, nearest, dir, TRAIL_LANE_OFFSET);
@@ -1000,9 +1237,13 @@
         sendNurseHome(ant);
         return;
       }
-      /* No early consumed-check: nurse walks to food site and discovers it empty on arrival */
       /* Stagger departure: nurses wait their turn so they form a queue, not a swarm */
       if (ant.nurseTimer > 0) { ant.nurseTimer -= dt; ant.speed = 0; return; }
+      /* prey gone: turn back after an individual delay */
+      if (ant.giveUpTimer > 0) {
+        ant.giveUpTimer -= dt;
+        if (ant.giveUpTimer <= 0) { ant.giveUpTimer = 0; if (!startNurseTrailRetreat(ant)) sendNurseHome(ant); return; }
+      }
       var outResult = followTrailStep(ant, ant.trail, -1, SPEED_ON_TRAIL, dt, now);
       if (outResult === 'lost') {
         sendNurseHome(ant);
@@ -1016,7 +1257,8 @@
           ant.nurseState = 'nurse_at_food';
           ant.nurseTimer = rand(NURSE_FOOD_PAUSE_MIN, NURSE_FOOD_PAUSE_MAX);
           ant.speed = 0;
-          registerFoodReach(ant);
+          arriveAtFood(ant);
+          if (!nestEstablished) return;   /* this arrival started an emigration */
         }
       }
       return;
@@ -1041,8 +1283,30 @@
         ant.angle += aDiff(ant.angle, aDeg(ant.x, ant.y, colonyX, colonyY)) * 0.5;
         stepAnt(ant, dt);
       }
-      if (dst(ant.x, ant.y, colonyX, colonyY) < NEST_R) resetNurseToWander(ant);
+      if (dst(ant.x, ant.y, colonyX, colonyY) < NEST_R) {
+        var cameFromFood = ant.fromFood;
+        deliverFood(ant, now);
+        ant.fromFood = false;
+        resetNurseToWander(ant);
+        if (cameFromFood) recruitWave(now);
+      }
       return;
+    }
+
+    /* ── Fetch a larva left behind by an emigration ── */
+    if (ant.nurseState === 'fetch' || ant.nurseState === 'fetch_home') { tickFetch(ant, dt); return; }
+    if (ant.nurseState === 'move') {
+      for (var si = 0; si < larvae.length; si++) {
+        var stray = larvae[si];
+        if (stray.stray && !stray.claimedBy) {
+          stray.claimedBy = ant.id;
+          ant.nurseState = 'fetch';
+          ant.fetchIdx = si;
+          ant.speed = SPEED_EXPLORE;
+          tickFetch(ant, dt);
+          return;
+        }
+      }
     }
 
     /* ── Wander states: home pull + nestmate repulsion ── */
@@ -1113,6 +1377,33 @@
     }
   }
 
+  function tickFetch(ant, dt) {
+    var lv = larvae[ant.fetchIdx];
+    if (!lv) { resetNurseToWander(ant); return; }
+    ant.speed = SPEED_RETURN;
+    if (ant.nurseState === 'fetch') {
+      /* aim for the on-screen point nearest the larva (the old pile can spill past an edge) */
+      var lx = Math.max(3, Math.min(W - 3, lv.x)), ly = Math.max(3, Math.min(H - 3, lv.y));
+      goalMove(ant, dt, aDeg(ant.x, ant.y, lx, ly));
+      if (dst(ant.x, ant.y, lx, ly) < 5) {
+        lv.active = false;
+        ant.carryingLarva = true;
+        ant.larvaIndex = ant.fetchIdx;
+        ant.nurseState = 'fetch_home';
+      }
+      return;
+    }
+    goalMove(ant, dt, aDeg(ant.x, ant.y, colonyX, colonyY));
+    if (dst(ant.x, ant.y, colonyX, colonyY) < NEST_R * 0.6) {
+      lv.x = colonyX + gauss() * LARVA_SIGMA_X;
+      lv.y = colonyY + gauss() * LARVA_SIGMA_Y;
+      lv.active = true; lv.atNest = true; lv.stray = false; lv.claimedBy = 0;
+      ant.carryingLarva = false;
+      ant.larvaIndex = -1;
+      resetNurseToWander(ant);
+    }
+  }
+
   /* ─── FORAGER STATE MACHINE ─────────────────────────────────── */
   function tickForager(ant, dt, now) {
     if (!nestEstablished) {
@@ -1120,7 +1411,8 @@
       return;
     }
 
-    steerAntSpacing(ant);
+    /* lateral repulsion would push trail-walkers off the line; resolveAntOverlaps handles contact */
+    if (!trailDir(ant)) steerAntSpacing(ant);
 
     if (ant.state === 'explore') {
       bugMove(ant, dt, MAX_LARGE_TURN);
@@ -1155,6 +1447,7 @@
         var near = findNearestTrail(ant.x, ant.y, now);
         if (near) {
           ant.trail = near;
+          if (activeFood && !activeFood.trail) activeFood.trail = near;
           startReturnState(ant, 'return_on_trail');
         } else {
           ant.trail = {
@@ -1165,6 +1458,7 @@
             foodAvailable: true
           };
           trails.push(ant.trail);
+          if (activeFood && !activeFood.trail) activeFood.trail = ant.trail;
           startReturnState(ant, 'return_new');
         }
       }
@@ -1200,35 +1494,16 @@
       }
 
     } else if (ant.state === 'at_nest') {
+      deliverFood(ant, now);
       ant.waitTimer -= dt;
       if (ant.waitTimer <= 0) {
-        var tgt = ant.trail;
+        var cameFromFood = ant.fromFood;
         ant.trail = null;
+        ant.fromFood = false;
         ant.state = 'explore';
         ant.speed = SPEED_EXPLORE;
-        if (tgt && trailFresh(tgt, now) && activeFood && !activeFood.consumed) {
-          /* Volatile odor: any ant within RECRUIT_VOLATILE_R of nest detects the signal */
-          var recruitCount = 0;
-          for (var ri = 0; ri < ants.length; ri++) {
-            var a = ants[ri];
-            if (dst(a.x, a.y, colonyX, colonyY) > RECRUIT_VOLATILE_R) continue;
-            if (a.type === 'nurse') {
-              if (a.nurseState !== 'move' && a.nurseState !== 'groom' && a.nurseState !== 'turn') continue;
-              a.nurseState = 'outbound';
-              a.trail      = tgt;
-              a.nurseTimer = recruitCount * NURSE_DEPART_STAGGER; /* staggered departure */
-              a.speed      = 0;
-              recruitCount++;
-            } else if (a.type === 'forager' && a.state === 'explore') {
-              /* Forager near nest joins the trail column directly */
-              a.state  = 'on_trail';
-              a.trail  = tgt;
-              a.speed  = SPEED_ON_TRAIL;
-            }
-          }
-        }
+        if (cameFromFood) recruitWave(now);
       }
-
     } else if (ant.state === 'recruited') {
       ant.sweepTimer -= dt;
       bugMove(ant, dt, MAX_LARGE_RECRUITED);
@@ -1257,11 +1532,20 @@
         }
       }
       var onResult = followTrailStep(ant, ant.trail, -1, SPEED_ON_TRAIL, dt, now);
+      if (onResult === 'lost') {
+        ant.lostTimer = (ant.lostTimer || 0) + dt;
+        if (ant.lostTimer > LOST_GIVEUP_MS) {
+          ant.state = 'explore'; ant.trail = null; ant.speed = SPEED_EXPLORE; ant.giveUpTimer = 0; ant.lostTimer = 0;
+        }
+        return;
+      }
+      ant.lostTimer = 0;
       if (onResult === 'food') {
         ant.foodX = ant.trail.foodX; ant.foodY = ant.trail.foodY;
         ant.giveUpTimer = 0;
+        arriveAtFood(ant);
+        if (!nestEstablished) return;   /* this arrival started an emigration */
         startReturnState(ant, 'return_on_trail');
-        registerFoodReach(ant);
       }
     }
   }
@@ -1327,16 +1611,15 @@
     ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(hx+fx*aFwd+rx*aLat, hy+fy*aFwd+ry*aLat); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(hx+fx*aFwd-rx*aLat, hy+fy*aFwd-ry*aLat); ctx.stroke();
 
-    if (!nestEstablished && ant.carryingLarva) {
+    if (ant.carryingLarva && (!emigrating || ant.pickedUpLarva)) {
       ctx.fillStyle = 'rgba(240,224,194,0.92)';
       ctx.beginPath();
       ctx.ellipse(ant.x - fx * (s * 0.15), ant.y - fy * (s * 0.15), s * 0.9, s * 0.55, ar, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    /* food droplet on returning ants and inbound nurses */
-    if (ant.state === 'return_new' || ant.state === 'return_on_trail' ||
-        (ant.type === 'nurse' && ant.nurseState === 'inbound')) {
+    /* a piece of prey carried in the mandibles */
+    if (ant.carryingFood) {
       ctx.fillStyle = 'rgba(205,145,72,0.85)';
       ctx.beginPath(); ctx.arc(hx, hy, s * 0.7, 0, Math.PI*2); ctx.fill();
     }
@@ -1390,7 +1673,8 @@
         angle: rand(0, Math.PI * 2),
         phase: rand(0, Math.PI * 2),
         tone: rand(0, 1),
-        active: false
+        active: false,
+        atNest: false
       });
     }
   }
@@ -1416,30 +1700,84 @@
       ctx.ellipse(0, 0, larva.len, larva.width + Math.max(0, wiggle) * 0.25, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     }
     ctx.restore();
   }
 
   function drawFoodSources(now) {
-    if (!activeFood || activeFood.consumed) return;
-    ctx.beginPath(); ctx.arc(activeFood.x, activeFood.y, 3.5, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(200,140,70,0.7)'; ctx.fill();
+    var i;
+    /* pieces delivered to the nest, slowly eaten */
+    nestFood = nestFood.filter(function (p) { return now - p.t < NEST_FOOD_FADE_MS; });
+    for (i = 0; i < nestFood.length; i++) {
+      var p = nestFood[i];
+      ctx.globalAlpha = 0.75 * (1 - (now - p.t) / NEST_FOOD_FADE_MS);
+      ctx.fillStyle = 'rgb(205,145,72)';
+      ctx.beginPath(); ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (!activeFood || (activeFood.consumed && !emigrating)) return;
+    ctx.fillStyle = 'rgba(200,140,70,0.75)';
+    if (activeFood.large) {
+      ctx.beginPath(); ctx.ellipse(activeFood.x, activeFood.y, 7, 5, 0.4, 0, Math.PI * 2); ctx.fill();
+      return;
+    }
+    /* the remaining pieces of small prey */
+    for (i = 0; i < activeFood.items; i++) {
+      var a = i * 2.39996, r = 1.2 + Math.sqrt(i) * 1.9;
+      ctx.beginPath(); ctx.arc(activeFood.x + Math.cos(a) * r, activeFood.y + Math.sin(a) * r, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
   }
 
   /* ─── INIT ──────────────────────────────────────────────────── */
+  /* Backing-store scale for sharp ants on high-DPI screens (capped at 2 to bound fill cost).
+   * All drawing stays in CSS pixels (W × H); the context transform does the scaling. */
+  var DPR = 1;
+  function sizeCanvas() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);   /* resizing the canvas resets the transform */
+  }
+
   function initCanvas() {
     canvas = document.createElement('canvas');
     canvas.id = 'ant-canvas';
-    canvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:0;opacity:0.7';
-    canvas.width = W = window.innerWidth;
-    canvas.height = H = window.innerHeight;
+    canvas.setAttribute('aria-hidden', 'true');
+    canvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:0;opacity:0.5';
     document.body.insertBefore(canvas, document.body.firstChild || null);
     ctx = canvas.getContext('2d');
+    sizeCanvas();
     window.addEventListener('resize', function () {
-      canvas.width = W = window.innerWidth;
-      canvas.height = H = window.innerHeight;
+      sizeCanvas();
+      clampWorld();
     }, { passive: true });
+  }
+
+  /* After a resize, pull everything that ants need to reach back inside the viewport;
+   * otherwise ants clamped at the edge could never arrive at an off-screen nest. */
+  function clampWorld() {
+    if (colonyX === undefined) return;
+    var m = 34, i, j;
+    var nx = Math.max(m, Math.min(W - m, colonyX)), ny = Math.max(m, Math.min(H - m, colonyY));
+    var dx = nx - colonyX, dy = ny - colonyY;
+    if (dx || dy) {
+      colonyX = nx; colonyY = ny;
+      for (i = 0; i < larvae.length; i++) { larvae[i].x += dx; larvae[i].y += dy; }
+      for (i = 0; i < nestFood.length; i++) { nestFood[i].x += dx; nestFood[i].y += dy; }
+    }
+    function inside(p) { p.x = Math.max(4, Math.min(W - 4, p.x)); p.y = Math.max(4, Math.min(H - 4, p.y)); }
+    if (migrationTrail && migrationTrail.points.length) {
+      for (i = 0; i < migrationTrail.points.length; i++) inside(migrationTrail.points[i]);
+      var last = migrationTrail.points[migrationTrail.points.length - 1];
+      last.x = colonyX; last.y = colonyY;
+    }
+    for (i = 0; i < trails.length; i++) for (j = 0; j < trails[i].points.length; j++) inside(trails[i].points[j]);
+    if (activeFood) inside(activeFood);
   }
 
   function initColony() {
@@ -1552,6 +1890,7 @@
     var states = [];
     for (var i = 0; i < ants.length; i++) {
       var ant = ants[i];
+      if (ant.spawnDelay > 0) continue;   /* not on screen yet */
       states.push({
         x: ant.x,
         y: ant.y,
@@ -1567,25 +1906,38 @@
     return { x: colonyX, y: colonyY, established: nestEstablished };
   };
 
-  function loop(now) {
-    if (!lastT) lastT = now;
-    var dt = Math.min(now - lastT, 100);
-    lastT = now;
+  /* The behaviour was tuned at 60 fps and much of it is per-tick (turn counters, steering gains),
+   * so the simulation always advances in fixed 60 Hz steps, whatever the display refresh rate. */
+  var SIM_STEP = 1000 / 60, simAcc = 0;
+
+  function simStep(dt, now) {
     if (raidRefractoryTimer > 0) raidRefractoryTimer = Math.max(0, raidRefractoryTimer - dt);
-    claimPendingFlyFood(now);
-    checkRaidEnd();
-    ctx.clearRect(0, 0, W, H);
-    drawMigrationTrail();
-    drawLarvae(now);
-    drawTrails(now);
-    drawFoodSources(now);
     for (var i = 0; i < ants.length; i++) {
       var ant = ants[i];
+      if (ant.meetTimer > 0) ant.meetTimer = Math.max(0, ant.meetTimer - dt);
+      if (ant.meetCooldown > 0) ant.meetCooldown = Math.max(0, ant.meetCooldown - dt);
       if (ant.type === 'nurse') tickNurse(ant, dt, now);
       else tickForager(ant, dt, now);
     }
     resolveAntOverlaps();
     updateNestEstablishment(dt);
+  }
+
+  function loop(now) {
+    if (insectWorld.paused) { lastT = null; requestAnimationFrame(loop); return; }
+    if (!lastT) lastT = now;
+    simAcc += Math.min(now - lastT, 100);
+    lastT = now;
+    claimPendingFlyFood(now);
+    checkRaidEnd(now);
+    var steps = 0;
+    while (simAcc >= SIM_STEP && steps < 6) { simStep(SIM_STEP, now); simAcc -= SIM_STEP; steps++; }
+    if (steps === 6) simAcc = 0;
+    ctx.clearRect(0, 0, W, H);
+    drawMigrationTrail();
+    drawLarvae(now);
+    drawTrails(now);
+    drawFoodSources(now);
     for (var di = 0; di < ants.length; di++) drawAnt(ants[di]);
     requestAnimationFrame(loop);
   }

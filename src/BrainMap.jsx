@@ -1,10 +1,10 @@
+import React from "react";
 // Comparative olfactory circuit: Drosophila melanogaster vs Ooceraea biroi
 // Circuit: ORN -> AL -> {LH, MB} -> CX -> descending neurons
 
 // ─── Single scale control ────────────────────────────────────────────────────
 // Controls the physical box size in App.jsx. 1.0 = default, 0.8 = 80%, etc.
-const DIAGRAM_SCALE = 1.3;
-window.DIAGRAM_SCALE = DIAGRAM_SCALE;
+export const DIAGRAM_SCALE = 1.3;
 
 // Full content extent in SVG coordinates (fixed viewBox, no zoom)
 const _VB = { x: 45, y: 33, w: 445, h: 334 };
@@ -231,51 +231,74 @@ const FLOW_ARROWS = [
 ];
 
 const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
-  const svgRef = React.useRef(null);
   const pathRefs = React.useRef({});
+  const pulseLayerRef = React.useRef(null);
   const idPrefix = React.useId ? React.useId().replace(/:/g, "") : "brainmap";
   const [hoverFly, setHoverFly] = React.useState(null);
   const [hoverAnt, setHoverAnt] = React.useState(null);
-  const [clock, setClock] = React.useState(() => performance.now());
-  const [pulses, setPulses] = React.useState([]);
   const clampedProgress = clamp(scrollProgress);
+  const progressRef = React.useRef(scrollProgress);
+  progressRef.current = scrollProgress;
+  const glowId = `${idPrefix}-pulse-glow`;
 
+  // Signal pulses travelling along the arrows. They are drawn straight into the DOM
+  // each frame, so the animation never re-renders the (large) SVG through React.
   React.useEffect(() => {
-    if (!alive) return undefined;
+    const layer = pulseLayerRef.current;
+    if (!alive || !layer) return undefined;
 
+    const NS = "http://www.w3.org/2000/svg";
+    const pulses = [];
+    const lengths = {};
     let raf;
-    const tick = (now) => {
-      setClock(now);
+    let timeoutId;
+
+    const spawn = () => {
+      const arrow = FLOW_ARROWS[Math.floor(Math.random() * FLOW_ARROWS.length)];
+      const path = pathRefs.current[arrow.key];
+      if (path) {
+        if (lengths[arrow.key] === undefined) lengths[arrow.key] = path.getTotalLength();
+        const g = document.createElementNS(NS, "g");
+        g.setAttribute("opacity", "0");
+        [[10.5, `url(#${glowId})`, null], [4, "rgba(255, 255, 255, 0.56)", null], [2.5, "var(--accent)", "0.98"]]
+          .forEach(([r, fill, fillOpacity]) => {
+            const c = document.createElementNS(NS, "circle");
+            c.setAttribute("r", r);
+            c.setAttribute("fill", fill);
+            if (fillOpacity) c.setAttribute("fill-opacity", fillOpacity);
+            g.appendChild(c);
+          });
+        layer.appendChild(g);
+        pulses.push({ g, path, len: lengths[arrow.key], born: performance.now(), duration: 1100 + Math.random() * 500 });
+      }
+      // Pulses speed up as the hero scrolls away.
+      timeoutId = setTimeout(spawn, Math.max(110, 240 - progressRef.current * 120));
+    };
+
+    const tick = () => {
+      const now = performance.now();
+      const boost = 0.48 + clamp(progressRef.current) * 0.52;
+      for (let i = pulses.length - 1; i >= 0; i--) {
+        const p = pulses[i];
+        const age = (now - p.born) / p.duration;
+        if (age >= 1) { p.g.remove(); pulses.splice(i, 1); continue; }
+        const point = p.path.getPointAtLength(p.len * Math.max(0, age));
+        const [px, py] = mapPoint([point.x, point.y]);
+        const fade = age < 0.14 ? age / 0.14 : age > 0.84 ? (1 - age) / 0.16 : 1;
+        p.g.setAttribute("transform", `translate(${px} ${py})`);
+        p.g.setAttribute("opacity", String(Math.max(0, fade) * boost));
+      }
       raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [alive]);
-
-  React.useEffect(() => {
-    if (!alive) return undefined;
-
-    const rate = Math.max(110, 240 - scrollProgress * 120);
-    const intervalId = setInterval(() => {
-      setPulses((current) => {
-        const arrowKey = FLOW_ARROWS[Math.floor(Math.random() * FLOW_ARROWS.length)]?.key;
-        if (!arrowKey) return current;
-
-        const now = performance.now();
-        const next = current.concat({
-          id: Math.random().toString(36).slice(2),
-          arrowKey,
-          born: now,
-          duration: 1100 + Math.random() * 500,
-        });
-
-        return next.filter((pulse) => now - pulse.born < pulse.duration + 200);
-      });
-    }, rate);
-
-    return () => clearInterval(intervalId);
-  }, [alive, scrollProgress]);
+    timeoutId = setTimeout(spawn, 240);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeoutId);
+      pulses.forEach((p) => p.g.remove());
+    };
+  }, [alive, glowId]);
 
   const onLeave = () => {
     setHoverFly(null);
@@ -285,7 +308,6 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
   const flyClipId = `${idPrefix}-fly-clip`;
   const antClipId = `${idPrefix}-ant-clip`;
   const hoverArrowId = `${idPrefix}-hover-arrow`;
-  const glowId = `${idPrefix}-pulse-glow`;
   const flyWashId = `${idPrefix}-fly-wash`;
   const antWashId = `${idPrefix}-ant-wash`;
   const haloBlurId = `${idPrefix}-halo-blur`;
@@ -393,12 +415,19 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
   return (
     <div className="brainmap">
       <svg
-        ref={svgRef}
         viewBox={VIEWBOX}
         preserveAspectRatio="xMidYMid meet"
-        aria-label="Comparative olfactory circuit diagram for fly and ant brains"
+        role="img"
+        aria-labelledby={`${idPrefix}-title ${idPrefix}-desc`}
         onPointerLeave={onLeave}
       >
+        <title id={`${idPrefix}-title`}>Comparative olfactory circuit of fly and ant brains</title>
+        <desc id={`${idPrefix}-desc`}>
+          Side-by-side frontal views of the Drosophila melanogaster and Ooceraea biroi brains.
+          In each, odor signals flow from the olfactory receptor neurons (ORNs) to the antennal lobe,
+          then to the mushroom body and lateral horn, on to the central complex, and out through
+          descending neurons (DNs).
+        </desc>
         <defs>
           <clipPath id={flyClipId}>
             <rect x={flyClip.x} y={flyClip.y} width={flyClip.width} height={flyClip.height} />
@@ -551,26 +580,8 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
           ))}
         </g>
 
-        {pulses.map((pulse) => {
-          const path = pathRefs.current[pulse.arrowKey];
-          if (!path) return null;
+        <g ref={pulseLayerRef} pointerEvents="none" />
 
-          const age = (clock - pulse.born) / pulse.duration;
-          if (age < 0 || age > 1) return null;
-
-          const totalLength = path.getTotalLength();
-          const sourcePoint = path.getPointAtLength(totalLength * age);
-          const [px, py] = mapPoint([sourcePoint.x, sourcePoint.y]);
-          const fade = age < 0.14 ? age / 0.14 : age > 0.84 ? (1 - age) / 0.16 : 1;
-
-          return (
-            <g key={pulse.id} opacity={fade * (0.48 + clampedProgress * 0.52)} pointerEvents="none">
-              <circle cx={px} cy={py} r="10.5" fill={`url(#${glowId})`} />
-              <circle cx={px} cy={py} r="4" fill="rgba(255, 255, 255, 0.56)" />
-              <circle cx={px} cy={py} r="2.5" fill="var(--accent)" fillOpacity="0.98" />
-            </g>
-          );
-        })}
 
         {renderHoverLabel(hoverFly)}
         {renderHoverLabel(hoverAnt)}
@@ -634,7 +645,7 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
             fill="currentColor"
             opacity="0.72"
           >
-            same circuit,
+            conserved cell types,
           </text>
           <text
             x={dividerX - 200}
@@ -646,7 +657,7 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
             fill="currentColor"
             opacity="0.72"
           >
-            different connectivity
+            varied connectivity,
           </text>
           <text
             x={dividerX - 200}
@@ -658,7 +669,7 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
             fill="currentColor"
             opacity="0.72"
           >
-            novel functions?
+            what about function?
           </text>
 
           <line
@@ -676,4 +687,4 @@ const BrainMap = ({ alive = true, scrollProgress = 0 }) => {
   );
 };
 
-window.BrainMap = BrainMap;
+export default BrainMap;

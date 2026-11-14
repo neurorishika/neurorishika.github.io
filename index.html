@@ -3,62 +3,80 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rishika Mohanta — insect neuroscience & tools</title>
-  <meta name="description" content="Rishika Mohanta — neuroscientist studying how arthropod brains vary across species and building open-source software and behavioral rigs for neuroethology." />
-  <meta name="keywords" content="neuroscience, insect brains, Drosophila, ants, Ooceraea biroi, olfactory navigation, multi-animal tracking, neuroethology, behavioral rigs, open-source, Rockefeller University" />
+  <title>Rishika Mohanta · Insect Neuroscientist, Rockefeller University</title>
+  <meta name="description" content="Rishika Mohanta is a neuroscience PhD student at The Rockefeller University studying insect olfaction and building open-source tools for neuroethology." />
   <meta name="author" content="Rishika Mohanta" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+  <link rel="canonical" href="https://neurorishika.github.io/" />
+  <!-- Mark that JavaScript is running before first paint, so scroll fade-ins never hide
+       content from crawlers or no-JS visitors (see .js rules in styles.css). -->
+  <script>document.documentElement.classList.add("js");</script>
 
-  <!-- Open Graph -->
-  <meta property="og:title" content="Rishika Mohanta — insect neuroscience & tools" />
-  <meta property="og:description" content="Neuroscientist studying how arthropod brains vary across species and building open-source software and behavioral rigs for comparative neuroethology." />
-  <meta property="og:type" content="website" />
+  <!-- Open Graph / social previews -->
+  <meta property="og:type" content="profile" />
+  <meta property="og:site_name" content="Rishika Mohanta" />
+  <meta property="og:locale" content="en_US" />
   <meta property="og:url" content="https://neurorishika.github.io/" />
+  <meta property="og:title" content="Rishika Mohanta · Insect Neuroscientist, Rockefeller University" />
+  <meta property="og:description" content="Rishika Mohanta is a neuroscience PhD student at The Rockefeller University studying insect olfaction and building open-source tools for neuroethology." />
+  <meta property="og:image" content="https://neurorishika.github.io/img/og-portrait.jpg" />
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:width" content="800" />
+  <meta property="og:image:height" content="800" />
+  <meta property="og:image:alt" content="Portrait of Rishika Mohanta" />
+  <meta property="profile:first_name" content="Rishika" />
+  <meta property="profile:last_name" content="Mohanta" />
+  <meta property="profile:username" content="neurorishika" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Rishika Mohanta · Insect Neuroscientist, Rockefeller University" />
+  <meta name="twitter:description" content="Rishika Mohanta is a neuroscience PhD student at The Rockefeller University studying insect olfaction and building open-source tools for neuroethology." />
+  <meta name="twitter:image" content="https://neurorishika.github.io/img/og-portrait.jpg" />
+  <meta name="twitter:image:alt" content="Portrait of Rishika Mohanta" />
 
-  <!-- Schema.org -->
-  <script type="application/ld+json">
-  {
-    "@context": "http://schema.org",
-    "@type": "Person",
-    "name": "Rishika Mohanta",
-    "url": "https://neurorishika.github.io/",
-    "jobTitle": "Graduate Fellow in Biosciences",
-    "memberOf": "The Rockefeller University, New York",
-    "alumniOf": "IISER Pune, India",
-    "sameAs": [
-      "https://github.com/neurorishika/",
-      "https://orcid.org/0000-0002-1396-3215",
-    ]
-  }
-  </script>
+  <!-- Structured data (ProfilePage + Person + publications) is generated from src/data.js
+       at build time by scripts/prerender.mjs and inserted here. -->
+  <!--app-jsonld-->
 
   <!-- Favicon -->
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="manifest" href="/favicon/site.webmanifest" />
+  <meta name="theme-color" content="#efe9dd" />
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <!-- Only the weights the site actually uses: fewer font files, faster first paint. -->
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Inter+Tight:wght@400&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="src/styles.css" />
-
-  <!-- React + Babel (CDN) -->
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root"><!--app-html--></div>
 
-  <script src="src/data.js"></script>
-  <script type="text/babel" src="src/hooks.jsx"></script>
-  <script type="text/babel" src="src/BrainMap.jsx"></script>
-  <script type="text/babel" src="src/ToolPreviews.jsx"></script>
-  <script type="text/babel" src="src/Sections.jsx"></script>
-  <script type="text/babel" src="src/Detail.jsx"></script>
-  <script type="text/babel" src="src/App.jsx"></script>
-  <script src="js/flies.js"></script>
-  <script src="js/ants.js"></script>
+  <script type="module" src="/src/main.jsx"></script>
+  <!-- Ambient flies & ants: never loaded for visitors who prefer reduced motion, and
+       hidden + paused if that setting is switched on while the page is open. -->
+  <script>
+    (function () {
+      var mq = window.matchMedia("(prefers-reduced-motion: reduce)"), loaded = false;
+      function load() {
+        if (loaded) return;
+        loaded = true;
+        ["/js/flies.js", "/js/ants.js"].forEach(function (src) {
+          var s = document.createElement("script"); s.src = src; s.async = false; document.body.appendChild(s);
+        });
+      }
+      function apply() {
+        var w = window.__insectWorld = window.__insectWorld || {};
+        w.paused = mq.matches;
+        document.documentElement.classList.toggle("animals-off", mq.matches);
+        if (!mq.matches) load();
+      }
+      apply();
+      if (mq.addEventListener) mq.addEventListener("change", apply);
+    })();
+  </script>
 </body>
 </html>

@@ -1,24 +1,22 @@
-// App shell — field notebook theme only.
-
-const SECTION_BG = {
-  hero:         "#e6dfcf",
-  now:          "#efe9dd",
-  research:     "#f0cdb0",
-  tools:        "#efe9dd",
-  rigs:         "#f0cdb0",
-  publications: "#efe9dd",
-  talks:        "#f0cdb0",
-  teaching:     "#efe9dd",
-  path:         "#f0cdb0",
-  contact:      "#b0532a",
-};
+import React from "react";
+import { flushSync } from "react-dom";
+import { SITE_DATA } from "./data.js";
+import { prefersReducedMotion, onScrollFrame, useInView, useScrollY, useHashRoute } from "./hooks.jsx";
+import BrainMap, { DIAGRAM_SCALE } from "./BrainMap.jsx";
+import {
+  PillarsSection, ModelsSection, ToolsSection, RigsSection,
+  PubsSection, TalksSection, TeachingSection, TimelineSection, ContactSection,
+} from "./Sections.jsx";
+// App shell: field notebook theme only.
 
 const Hero = () => {
-  const id = window.SITE_DATA.identity;
-  const [ref, , progress] = window.useInView();
-  const y = window.useScrollY();
-  const textDrift = Math.min(60, y * 0.08);
-  const brainDrift = Math.min(120, y * 0.30);
+  const id = SITE_DATA.identity;
+  const [ref, inView, progress] = useInView();
+  const reduced = prefersReducedMotion();
+  // Every effect below saturates by ~750px of scroll, so stop re-rendering after that.
+  const y = useScrollY(800);
+  const textDrift = reduced ? 0 : Math.min(60, y * 0.08);
+  const brainDrift = reduced ? 0 : Math.min(120, y * 0.30);
 
   return (
     <section className="hero" data-screen-label="hero" ref={ref}>
@@ -33,14 +31,15 @@ const Hero = () => {
         <p className="hero-pitch">{id.pitch}</p>
         <div className="hero-meta">
           <a href="#research">research ↓</a>
+          <a href="#models">models ↓</a>
           <a href="#tools">tools ↓</a>
           <a href="#contact">contact ↓</a>
-          <a href="https://neurorishika.github.io/CV/rm-cv.pdf" target="_blank" rel="noreferrer">CV (pdf) ↗</a>
+          <a href={id.cv} target="_blank" rel="noreferrer">CV (pdf) ↗</a>
         </div>
       </div>
-      <div className="hero-right" data-label="fig. 01 · insect olfactory circuit, frontal view"
-           style={{ transform: `translateY(${brainDrift}px)`, width: `${(window.DIAGRAM_SCALE || 1) * 100}%`, justifySelf: 'center' }}>
-        <window.BrainMap alive={true} scrollProgress={progress} />
+      <div className="hero-right" data-label="insect olfactory circuit, frontal view"
+           style={{ transform: `translateY(${brainDrift}px)`, width: `${DIAGRAM_SCALE * 100}%`, justifySelf: 'center' }}>
+        <BrainMap alive={inView && !reduced} scrollProgress={progress} />
       </div>
 
       <div className="scroll-hint" style={{ opacity: Math.max(0, 1 - y / 140) }}>
@@ -51,87 +50,130 @@ const Hero = () => {
   );
 };
 
-const RAIL_BG_TYPE = { research: "tint", rigs: "tint", talks: "tint", path: "tint", contact: "dark" };
+const SECTIONS = ["research", "models", "tools", "rigs", "publications", "talks", "teaching", "path", "contact"];
+const RAIL_BG_TYPE = { research: "tint", tools: "tint", publications: "tint", teaching: "tint", contact: "dark" };
 
-const ProgressRail = () => {
-  const sections = ["now", "research", "tools", "rigs", "publications", "talks", "teaching", "path", "contact"];
-  const [active, setActive] = React.useState("");
-  const [y, setY] = React.useState(0);
-  const [docH, setDocH] = React.useState(1);
+// Which section is under the 40% line of the viewport, plus overall scroll fraction.
+// At the very bottom of the page the last section wins, even if it's too short to reach the line.
+const useActiveSection = () => {
+  const [state, setState] = React.useState({ active: "", pct: 0 });
   React.useEffect(() => {
-    const on = () => {
-      setY(window.scrollY);
-      setDocH(document.documentElement.scrollHeight - window.innerHeight);
-      const mid = window.scrollY + window.innerHeight * 0.4;
-      let cur = "";
-      for (const s of sections) {
+    const measure = () => {
+      const docH = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const mid = window.innerHeight * 0.4;
+      let active = "";
+      for (const s of SECTIONS) {
         const el = document.getElementById(s);
-        if (!el) continue;
-        const top = el.getBoundingClientRect().top + window.scrollY;
-        if (top <= mid) cur = s;
+        if (el && el.getBoundingClientRect().top <= mid) active = s;
       }
-      setActive(cur);
+      if (window.scrollY >= docH - 2) active = SECTIONS[SECTIONS.length - 1];
+      const pct = Math.round(Math.max(0, Math.min(1, window.scrollY / docH)) * 1000) / 1000;
+      setState((prev) => (prev.active === active && prev.pct === pct ? prev : { active, pct }));
     };
-    window.addEventListener("scroll", on, { passive: true });
-    window.addEventListener("resize", on);
-    on();
-    return () => { window.removeEventListener("scroll", on); window.removeEventListener("resize", on); };
+    measure();
+    return onScrollFrame(measure);
   }, []);
-  const pct = Math.max(0, Math.min(1, y / Math.max(1, docH)));
+  return state;
+};
+
+// Owns the scroll tracking, so scrolling re-renders only the navigation, never the page.
+const NavChrome = () => {
+  const { active, pct } = useActiveSection();
+  return (
+    <>
+      <TopNav active={active} />
+      <ProgressRail active={active} pct={pct} />
+    </>
+  );
+};
+
+// Side rail: wide screens only (hidden below 1560px in CSS).
+const ProgressRail = ({ active, pct }) => {
   const bgType = RAIL_BG_TYPE[active] || "";
   return (
-    <div className={`rail${bgType ? ` rail--${bgType}` : ""}`} aria-hidden="true">
-      <div className="rail-line">
+    <nav className={`rail${bgType ? ` rail--${bgType}` : ""}`} aria-label="Sections">
+      <div className="rail-line" aria-hidden="true">
         <div className="rail-fill" style={{ height: `${pct * 100}%` }} />
         <div className="rail-tick" style={{ top: `${pct * 100}%` }} />
       </div>
       <ul className="rail-sections">
-        {sections.map(s => (
+        {SECTIONS.map(s => (
           <li key={s} className={active === s ? "on" : ""}>
-            <a href={`#${s}`}>{s}</a>
+            <a href={`#${s}`} aria-current={active === s ? "true" : undefined}>{s}</a>
           </li>
         ))}
       </ul>
-    </div>
+    </nav>
+  );
+};
+
+// Slim sticky top bar: shown wherever the rail is hidden; collapses to a menu on phones.
+const TopNav = ({ active }) => {
+  const [open, setOpen] = React.useState(false);
+  /* collapse the menu before the browser scrolls to the anchor, so the jump
+     is measured with the menu closed (otherwise it lands past the heading) */
+  const close = () => flushSync(() => setOpen(false));
+  return (
+    <nav className={`topnav${open ? " topnav--open" : ""}`} aria-label="Sections">
+      <a className="topnav-brand" href="#" onClick={close}>rishika mohanta</a>
+      <button className="topnav-toggle" type="button" aria-expanded={open}
+              aria-controls="topnav-links" onClick={() => setOpen(o => !o)}>
+        {open ? "close" : "menu"}
+      </button>
+      <ul className="topnav-links" id="topnav-links">
+        {SECTIONS.map(s => (
+          <li key={s}>
+            <a href={`#${s}`} className={active === s ? "on" : ""} onClick={close}
+               aria-current={active === s ? "true" : undefined}>{s}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 };
 
 const App = () => {
-  const route = window.useHashRoute();
+  const route = useHashRoute();
+  const landed = React.useRef(false);
 
   React.useEffect(() => {
-    if (route && route.startsWith("#/")) window.scrollTo({ top: 0, behavior: "auto" });
+    // Old deep-dive links (#/tools/…, #/research/…) no longer exist: drop them and land at the top.
+    if (route.startsWith("#/")) {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+      window.dispatchEvent(new HashChangeEvent("hashchange"));   /* keep route state in sync with the URL */
+      window.scrollTo({ top: 0, behavior: "auto" });
+      return;
+    }
+    // Arriving with #section: the browser tried to scroll before React rendered the target,
+    // so scroll once after first render. Later in-page clicks are left to the browser.
+    if (landed.current) return;
+    landed.current = true;
+    if (route === "" || route === "#") return;
+    const el = document.getElementById(route.slice(1));
+    if (el) el.scrollIntoView({ behavior: "auto", block: "start" });
   }, [route]);
-
-  const isDetail = route && route.startsWith("#/");
 
   return (
     <div className="page">
-      {isDetail ? (
-        <window.Router route={route} />
-      ) : (
-        <>
-          <ProgressRail />
-          <Hero />
-          <window.NowSection />
-          <window.PillarsSection />
-          <window.ToolsSection />
-          <window.RigsSection />
-          <window.PubsSection />
-          <window.TalksSection />
-          <window.TeachingSection />
-          <window.TimelineSection />
-          <window.ContactSection />
-        </>
-      )}
+      <NavChrome />
+      <main id="main">
+        <Hero />
+        <PillarsSection />
+        <ModelsSection />
+        <ToolsSection />
+        <RigsSection />
+        <PubsSection />
+        <TalksSection />
+        <TeachingSection />
+        <TimelineSection />
+        <ContactSection />
+      </main>
 
       <footer className="footer">
-        <span>© 2026 · rishika mohanta</span>
-        <span>Built with React, vanilla JS, and some Claude magic.</span>
+        <span>© {new Date().getFullYear()} · rishika mohanta</span>
       </footer>
     </div>
   );
 };
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+export default App;
